@@ -1,6 +1,6 @@
 ; YouTube: @game_play267
 ; Twitch: RR_357000
-; X:@relliK_2048
+; X: @relliK_2048
 ; Discord:
 #Include %A_ScriptDir%\t7es3_tools\Gdip.ahk
 #SingleInstance force
@@ -207,8 +207,8 @@ GuiHwnd := WinExist()
 
 
 ; ─── TekkenGame section. ────────────────────────────────────────────────────────────
-Gui, Add, Button, gRunTekkenGame         x10 y25 w100 h50, RUN TEKKEN
-Gui, Add, Button, gExitTekkenGame       x120 y25 w100 h50, EXIT TEKKEN
+Gui, Add, Button, gRunTekkenGame         x10 y25 w100 h50, RUN TEKKEN 7
+Gui, Add, Button, gExitTekkenGame       x120 y25 w100 h50, EXIT TEKKEN 7
 Gui, Add, Button, gRefreshPath          x230 y25 w100 h50, REFRESH PATH
 Gui, Add, Button, gSetTekkenGamePath    x340 y25 w100 h50, SET PATH
 Gui, Add, Button, gToggleMute vMuteBtn  x450 y25 w100 h50, % (muteSound ? "UNMUTE" : "MUTE")
@@ -231,12 +231,12 @@ Gui, Add, Button,                           x670 y145 w100 h50,
 
 
 ; ─── Screen manager. ────────────────────────────────────────────────────────────
-Gui, Add, Button, gMoveToMonitor                x120 y85 w100 h50, SWITCH MONITOR 1/2
-Gui, Add, Button, vSizeFull gSetSizeChoice      x230 y85 w100 h50, FULLSCREEN
-Gui, Add, Button, vSizeWindowed gSetSizeChoice  x340 y85 w100 h50, WINDOWED
-Gui, Add, Button, vSizeHidden                   x450 y85 w100 h50, HIDDEN
-Gui, Add, Button, gResetScreen                  x560 y85 w100 h50, RESET SCREEN
-Gui, Add, Button,                               x670 y85 w100 h50,
+Gui, Add, Button, vSizeFull gSetSizeChoice          x120 y85 w100 h50, FULLSCREEN
+Gui, Add, Button, vSizeWindowed gSetSizeChoice      x230 y85 w100 h50, WINDOWED
+Gui, Add, Button, vSizeHidden                       x340 y85 w100 h50, HIDDEN
+Gui, Add, Button, gMoveToMonitor                    x450 y85 w100 h50, SWITCH MONITOR 1/2
+Gui, Add, Button, gResetScreen                      x560 y85 w100 h50, RESET SCREEN
+Gui, Add, Button,                                   x670 y85 w100 h50,
 
 
 ; ─── media. ────────────────────────────────────────────────────────────
@@ -244,23 +244,23 @@ Gui, Add, Button, gScreenshot            x10 y205 w100 h50, TAKE SCREENSHOT
 Gui, Add, Button, gSetAudiorecord       x120 y205 w100 h50, SET AUDIO DEVICES
 Gui, Add, Button, gSetAudioDefault      x230 y205 w100 h50, RESET AUDIO DEVICES
 Gui, Add, Button, gAudioCapture         x340 y205 w100 h50, RECORD  AUDIO
-Gui, Add, Button, gVideoCapture         x450 y205 w100 h50, RECORD  VIDEO
-Gui, Add, Button, gStopCapture          x560 y205 w100 h50, STOP VIDEO CAPTURE
-Gui, Add, Button, gStopCapture          x670 y205 w100 h50,
+Gui, Add, Button, gVideoCapture         x450 y205 w100 h50, CAPTURE VIDEO
+Gui, Add, Button,                       x560 y205 w100 h50,
+Gui, Add, Button,                       x670 y205 w100 h50,
 
 
 ; ─── other. ────────────────────────────────────────────────────────────
-Gui, Add, Button,                   x10 y265 w100 h50,
-Gui, Add, Button,                   x120 y265 w100 h50,
-Gui, Add, Button,                   x230 y265 w100 h50,
-Gui, Add, Button, gViewLog          x340 y265 w100 h50, VIEW LOG
-Gui, Add, Button, gClearLog         x450 y265 w100 h50, CLEAR LOG
-Gui, Add, Button, gOpenScriptDir    x560 y265 w100 h50, BROWSE
-Gui, Add, Button, gViewConfig       x670 y265 w100 h50, VIEW  SETTINGS
+Gui, Add, Button, gViewLog          x10 y265 w100 h50, VIEW LOGS
+Gui, Add, Button, gClearLog         x120 y265 w100 h50, CLEAR LOGS
+Gui, Add, Button, gOpenScriptDir    x230 y265 w100 h50, BROWSE
+Gui, Add, Button, gViewConfig       x340 y265 w100 h50, VIEW  SETTINGS
+Gui, Add, Button,                   x450 y265 w100 h50,
+Gui, Add, Button,                   x560 y265 w100 h50,
+Gui, Add, Button,                   x670 y265 w100 h50,
 
 
 ; ─── text. ────────────────────────────────────────────────────────────
-Gui, Add, Text, x5 y325, Controls: Screenshot = F1 | Videocapture = F2 | Audiorecording = F3
+Gui, Add, Text, x5 y325, CONTROLS: Screenshot = F1 | Videocapture = F2 | Audiorecording = F3. Press q inside the ffmpeg window to quit recording
 
 
 ; ─── status bar 1 ────────────────────────────────────────────────────────────
@@ -1268,8 +1268,8 @@ outFile  := A_ScriptDir "\t7es3_captures\t7es3_video_" ts ".mp4"
 audioDev := "Voicemeeter Out B1 (VB-Audio Voicemeeter VAIO)"
 
 if (fps = "") {
-    CustomTrayTip("Missing Framerate, defaulting to 30.")
-    fps := 30
+    CustomTrayTip("Missing Framerate, defaulting to 60.")
+    fps := 60
 }
 
 monLeft := 0
@@ -1311,29 +1311,6 @@ CustomTrayTip("Recording started.", 1)
 return
 
 
-StopCapture:
-    if (recording && ffmpegPID) {
-        WinClose, ahk_pid %ffmpegPID%
-        Sleep, 1000
-        Process, Exist, %ffmpegPID%
-        if (ErrorLevel = ffmpegPID)
-            Process, Close, %ffmpegPID%
-
-        recording := false
-        ffmpegPID := 0
-        GuiControl, +c808080, VideoCapture
-        GuiControl, Disable, Stop
-
-        RunWait, "%nircmd%" setdefaultsounddevice "Speakers" 1 /nosplash,, Hide
-        RunWait, "%nircmd%" setdefaultsounddevice "Microphone" 1 /nosplash,, Hide
-
-        MsgBox, 64, Info, FFmpeg recording stopped.
-    } else {
-        MsgBox, 48, Info, No recording is currently running.
-    }
-return
-
-
 ; ─── Hotkey to toggle audio capture ─────────────────────
 F3::
     Gosub, AudioCapture
@@ -1342,8 +1319,8 @@ return
 
 ; ─── Toggle Audio Capture ───────────────────────────────
 AudioCapture:
-nircmd := A_ScriptDir . "\tools\nircmd.exe"
-ffmpegExe := A_ScriptDir . "\tools\ffmpeg.exe"
+nircmd      := A_ScriptDir . "\tools\nircmd.exe"
+ffmpegExe   := A_ScriptDir . "\tools\ffmpeg.exe"
 
 ; Ensure NirCmd exists
 if !FileExist(nircmd) {
@@ -1399,7 +1376,6 @@ if !ProcessExist("TekkenGame-Win64-Shipping.exe") {
 FormatTime, ts,, yyyy-MM-dd_HH-mm-ss
 FileCreateDir, %A_ScriptDir%\t7es3_recordings
 outFile := A_ScriptDir "\t7es3_recordings\t7es3_audio_" ts ".wav"
-;audioDevice := "CABLE Output (VB-Audio Virtual Cable)"
 audioDevice := "Voicemeeter Out B1 (VB-Audio Voicemeeter VAIO)"
 
 ffArgs := "-f dshow -i audio=""" audioDevice """ -acodec pcm_s16le -ar 48000 -ac 2 """ outFile """"
