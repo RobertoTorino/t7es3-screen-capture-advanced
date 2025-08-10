@@ -1426,12 +1426,6 @@ return
 SetAudioRecord:
 nircmd := A_ScriptDir . "\tools\nircmd.exe"
 
-; Close T7ES3 if running
-if ProcessExist("TekkenGame-Win64-Shipping.exe") {
-    Process, Close, TekkenGame-Win64-Shipping.exe
-    MsgBox, 48, Info, T7ES3 was closed because it must use the correct audio devices.
-    return
-}
 
 ; Ensure NirCmd exists
 if !FileExist(nircmd) {
@@ -1455,13 +1449,6 @@ return
 ; ─── set audio to default. ────────────────────────────────────────────────────────────────────
 SetAudioDefault:
 nircmd := A_ScriptDir . "\tools\nircmd.exe"
-
-; Close T7ES3 if running
-if ProcessExist("TekkenGame-Win64-Shipping.exe") {
-    Process, Close, TekkenGame-Win64-Shipping.exe
-    MsgBox, 48, Info, T7ES3 was closed because it must use the correct audio devices.
-    return
-}
 
 ; Ensure NirCmd exists
 if !FileExist(nircmd) {
