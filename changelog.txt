@@ -16,3 +16,4 @@
 [20250810_10] Built t7es3scaLocalBuild_20250810_100927.exe with embedded files
 [20250810_10] Built t7es3scaLocalBuild_20250810_101405.exe with embedded files
 [20250810_11] Built t7es3scaLocalBuild_20250810_113814.exe with embedded files
+[20250810_12] Built t7es3scaLocalBuild_20250810_121000.exe with embedded files

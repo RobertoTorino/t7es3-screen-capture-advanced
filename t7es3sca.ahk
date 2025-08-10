@@ -56,42 +56,24 @@ ExtractZip(tempZip, finalDest) {
 tempZip := A_Temp . "\ffmpeg.zip"
 FileInstall, t7es3_tools\ffmpeg.zip, %tempZip%, 1
 ExtractZip(tempZip, dest)
-
 MsgBox, Tools extracted to %dest%
-
-;
-;; ─── needed for TekkenGame path. ────────────────────────────────────────────────────────────────────
-;TrimQuotesAndSpaces(str)
-;{
-;    str := Trim(str) ; trim spaces first
-;
-;    ; Remove leading double quote
-;    while (SubStr(str, 1, 1) = """")
-;        str := SubStr(str, 2)
-;
-;    ; Remove trailing double quote
-;    while (SubStr(str, 0) = """")
-;        str := SubStr(str, 1, StrLen(str) - 1)
-;
-;    return str
-;}
 
 
 ; ─── global config variables. ────────────────────────────────────────────────────────────────────
-Global audioPrepared        := false
-iniFile             := A_Temp      . "\t7es3.ini"
-fallbackLog         := A_ScriptDir . "\t7es3_fallback.log"
-FFmpegFolder        := A_ScriptDir . "\tools\"
-ffmpegExe           := A_ScriptDir . "\tools\ffmpeg.exe"
-nircmd              := A_ScriptDir . "\tools\nircmd.exe"
-logFile             := A_ScriptDir . "\t7es3.log"
-baseDir             := A_ScriptDir
-recording           := false
-ffmpegPID           := 0
-lastPlayed          := ""
-ffplayPID           := 0
-Global muteSound    := 0
-TekkenGameExe       := "\TekkenGame\Binaries\Win64\TekkenGame-Win64-Shipping.exe"
+Global audioPrepared    := false
+iniFile                 := A_Temp      . "\t7es3.ini"
+fallbackLog             := A_ScriptDir . "\t7es3_fallback.log"
+FFmpegFolder            := A_ScriptDir . "\tools\"
+ffmpegExe               := A_ScriptDir . "\tools\ffmpeg.exe"
+nircmd                  := A_ScriptDir . "\tools\nircmd.exe"
+logFile                 := A_ScriptDir . "\t7es3.log"
+baseDir                 := A_ScriptDir
+recording               := false
+ffmpegPID               := 0
+lastPlayed              := ""
+ffplayPID               := 0
+Global muteSound        := 0
+TekkenGameExe           := "\TekkenGame\Binaries\Win64\TekkenGame-Win64-Shipping.exe"
 
 
 ; ─── Conditionally set default priority if it's not already set. ──────────────────────────────────────────────────────
@@ -218,7 +200,7 @@ IniRead, muteSound, %iniFile%, MUTE_SOUND, Mute, 0
 ; ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 title := "T7ES3 Screen Capture Advanced - " . Chr(169) . " " . A_YYYY . " - Philip"
 Gui, Show, w780 h470, %title%
-Gui, +LastFound +AlwaysOnTop
+Gui, +LastFound
 Gui, Font, s10 q5, Segoe UI
 Gui, Margin, 15, 15
 GuiHwnd := WinExist()
@@ -262,7 +244,7 @@ Gui, Add, Button, gScreenshot            x10 y205 w100 h50, TAKE SCREENSHOT
 Gui, Add, Button, gSetAudiorecord       x120 y205 w100 h50, SET AUDIO DEVICES
 Gui, Add, Button, gSetAudioDefault      x230 y205 w100 h50, RESET AUDIO DEVICES
 Gui, Add, Button, gAudioCapture         x340 y205 w100 h50, RECORD  AUDIO
-Gui, Add, Button, gVideoCapture         x450 y205 w100 h50, CAPTURE VIDEO
+Gui, Add, Button, gVideoCapture         x450 y205 w100 h50, RECORD  VIDEO
 Gui, Add, Button, gStopCapture          x560 y205 w100 h50, STOP VIDEO CAPTURE
 Gui, Add, Button, gStopCapture          x670 y205 w100 h50,
 
@@ -1269,8 +1251,7 @@ if !ProcessExist("TekkenGame-Win64-Shipping.exe") {
 MsgBox, 52, Warning, Did you SET AUDIO DEVICES?
 IfMsgBox No
 {
-    Process, Close, TekkenGame-Win64-Shipping.exe
-    MsgBox, 48, Info, T7ES3 was closed because it must use the correct audio devices.
+    MsgBox, 48, Info, click SET AUDIO DEVICES.
     return
 }
 
@@ -1405,8 +1386,7 @@ if (ffmpegPIDRunning) {
 MsgBox, 52, Warning, Did you SET AUDIO DEVICES?
 IfMsgBox No
 {
-    Process, Close, TekkenGame-Win64-Shipping.exe
-    MsgBox, 48, Info, T7ES3 was closed because it must use the correct audio devices.
+    MsgBox, 48, Info, click SET AUDIO DEVICES.
     return
 }
 
@@ -1421,7 +1401,6 @@ FileCreateDir, %A_ScriptDir%\t7es3_recordings
 outFile := A_ScriptDir "\t7es3_recordings\t7es3_audio_" ts ".wav"
 ;audioDevice := "CABLE Output (VB-Audio Virtual Cable)"
 audioDevice := "Voicemeeter Out B1 (VB-Audio Voicemeeter VAIO)"
-
 
 ffArgs := "-f dshow -i audio=""" audioDevice """ -acodec pcm_s16le -ar 48000 -ac 2 """ outFile """"
 
@@ -1646,34 +1625,16 @@ RotateFfmpegLog(maxLogs = "", maxSize = "") {
 SortLogsByDate(ByRef arr) {
     Loop, % arr.MaxIndex()
         Loop, % arr.MaxIndex() - A_Index
-            if (FileExist(arr[A_Index]) && FileExist(arr[A_Index + 1])) {
-                FileGetTime, time1, % arr[A_Index], M
-                FileGetTime, time2, % arr[A_Index + 1], M
-                if (time1 > time2) {
-                    temp := arr[A_Index]
-                    arr[A_Index] := arr[A_Index + 1]
-                    arr[A_Index + 1] := temp
-                }
-            }
+    if (FileExist(arr[A_Index]) && FileExist(arr[A_Index + 1])) {
+        FileGetTime, time1, % arr[A_Index], M
+        FileGetTime, time2, % arr[A_Index + 1], M
+        if (time1 > time2) {
+            temp := arr[A_Index]
+            arr[A_Index] := arr[A_Index + 1]
+            arr[A_Index + 1] := temp
+        }
+    }
 }
-
-
-; ─── custom msgbox. ────────────────────────────────────────────────────────────────────
-ShowCustomMsgBox(title, text, x := "", y := "") {
-    Gui, MsgBoxGui:New, +AlwaysOnTop +ToolWindow, %title%
-    Gui, MsgBoxGui:Add, Text,, %text%
-    Gui, MsgBoxGui:Add, Button, gCloseCustomMsgBox Default, OK
-
-    ; Auto-position if x/y provided
-    if (x != "" && y != "")
-        Gui, MsgBoxGui:Show, x%x% y%y% AutoSize
-    else
-        Gui, MsgBoxGui:Show, AutoSize Center
-}
-
-CloseCustomMsgBox:
-    Gui, MsgBoxGui:Destroy
-return
 
 
 GuiClose:
