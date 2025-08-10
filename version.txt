@@ -6,4 +6,4 @@ OriginalFilename=t7es3sca.exe
 ProductName=T7ES3 Screen Capture Advanced
 ProductVersion=%%VERSION%%
 LegalCopyright=© 2025 Philip
-Comments=Built on 20250810_06 | Git Tag: %%GIT_TAG%%
+Comments=Built on 20250810_11 | Git Tag: %%GIT_TAG%%

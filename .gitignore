@@ -1,8 +1,5 @@
 /.idea/
-/build/t7es3scLocalBuild_*
-/new_builds/t7es3scLocalBuild_*
-/gh.txt
-/github_release.ps1
-/new_build.cmd
-/new_build.ps1
-/pc.log
+
+/new_builds/
+
+/tools/

@@ -1,3 +1,4 @@
+# T7ES3 continuous integration workflow configuration
 name: CI Build and Release
 
 on:
@@ -22,7 +23,7 @@ jobs:
         shell: pwsh
         run: |
           $OutputEncoding = [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-          Write-Host "Using PowerShell version: $($PSVersionTable.PSVersion)"
+          Write-Host ":: Using PowerShell version: $($PSVersionTable.PSVersion)"
 
       - name: Build EXE, move to root, UPX and create ZIP
         shell: pwsh
@@ -58,7 +59,7 @@ jobs:
           Write-Error "Required file missing: $file"
           exit 1
             } else {
-              Write-Host "Found: $file"
+              Write-Host ":: Found: $file"
             }
           }
 
@@ -91,19 +92,20 @@ jobs:
             }
           }
           
-          Write-Host "Looking for output exe in current folder and repo root..."
+          Write-Host ":: Looking for output exe in current folder and repo root..."
             
           Get-ChildItem -Path $PWD -Filter "t7es3sca.exe" -Recurse | ForEach-Object { Write-Host "Found EXE at $($_.FullName)" }
-          Get-ChildItem -Path $repoRoot -Filter "t7es3sca.exe" -Recurse | ForEach-Object { Write-Host "Found EXE at $($_.FullName)" }
+          Get-ChildItem -Path $repoRoot -Filter "t7es3sca.exe" -Recurse | ForEach-Object { Write-Host ":: Found EXE at $($_.FullName)" }
 
-          Write-Host "Looking for output at: $finalExe"
-          Start-Sleep -Seconds 2 # optional, for timing issues
+          Write-Host ":: Looking for output at: $finalExe"
+          Start-Sleep -Seconds 2
           if (!(Test-Path $finalExe)) {
             Write-Error ":: Build failed — output exe still not found at $finalExe"
             exit 1
           }
 
           # UPX
+          Write-Host ":: Compressing exe..."
           if (Test-Path $$upxPath) {
             & $upxPath --best --lzma $finalExe
           }
@@ -116,7 +118,7 @@ jobs:
             Write-Error "Required file missing: $file"
             exit 1
               } else {
-                Write-Host "Found: $file"
+                Write-Host ":: Found: $file"
               }
             }
           

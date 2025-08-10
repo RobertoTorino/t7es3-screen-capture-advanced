@@ -15,14 +15,22 @@ $versionTpl     = "version_template.txt"
 $extraAssets    = @($readmePath, $iniPath, $licensePath, $versionTxt, $versionDat)
 
 
+# === CLEAN-UP ===
+Write-Host ":: Cleaning up..."
+if (Test-Path "new_builds")
+{
+Remove-Item -Recurse -Force "new_builds"
+Write-Host ":: Removed new_builds folder"
+}
+
 # === GET ENVIRONMENT INFO ===
-$localTag = "LocalBuild_" + (Get-Date -Format "yyyyMMdd_HHmmss")
-$finalExe = "${baseExeName}${localTag}.exe"
-$zipName  = "${baseExeName}${localTag}.zip"
+$localTag  = "LocalBuild_" + (Get-Date -Format "yyyyMMdd_HHmmss")
+$finalExe  = "${baseExeName}${localTag}.exe"
+$zipName   = "${baseExeName}${localTag}.zip"
 
 
-$timestamp    = Get-Date -Format "yyyyMMdd_HH"
-# ^ Only define $timestamp if you need it for logging, not for naming output files
+# === TIMESTAMP (Only define $timestamp if you need it for logging) ===
+$timestamp = Get-Date -Format "yyyyMMdd_HH"
 
 
 # === VERSIONING ===
@@ -36,26 +44,26 @@ Remove-Item "$baseExeName.exe","$finalExe","build.log","$zipName" -ErrorAction S
 
 
 # === COMPILE SCRIPT ===
-Write-Host "Compiling AHK..."
+Write-Host ":: Compiling AHK..."
 
 # Show current working directory
-Write-Host "_ Current directory: $(Get-Location)"
+Write-Host ":: Current directory: $(Get-Location)"
 
 # Verify all paths
-Write-Host "Path verification:" -ForegroundColor Yellow
-Write-Host "- Script: $scriptName (exists: $(Test-Path $scriptName))"
-Write-Host "- Ahk2Exe: $ahk2exePath (exists: $(Test-Path $ahk2exePath))"
-Write-Host "- UPX: $upxPath (exists: $(Test-Path $upxPath))"
-Write-Host "- MediaFolder: $mediaFolder (exists: $(Test-Path $mediaFolder))"
-Write-Host "- Icon: $iconPath (exists: $(Test-Path $iconPath))"
-Write-Host "- Ini: $iniPath (exists: $(Test-Path $iniPath))"
-Write-Host "- License: $licensePath (exists: $(Test-Path $licensePath))"
-Write-Host "- Readme: $readmePath (exists: $(Test-Path $readmePath))"
-Write-Host "- Tools: $toolsFolder (exists: $(Test-Path $toolsFolder))"
-Write-Host "- Dat: $versionDat (exists: $(Test-Path $versionDat))"
-Write-Host "- Txt: $versionTxt (exists: $(Test-Path $versionTxt))"
-Write-Host "- Template: $versionTpl (exists: $(Test-Path $versionTpl))"
-Write-Host "- Output will be: $baseExeName.exe"
+Write-Host ":: Path verification:" -ForegroundColor Yellow
+Write-Host ":: Script: $scriptName (exists: $(Test-Path $scriptName))"
+Write-Host ":: Ahk2Exe: $ahk2exePath (exists: $(Test-Path $ahk2exePath))"
+Write-Host ":: UPX: $upxPath (exists: $(Test-Path $upxPath))"
+Write-Host ":: MediaFolder: $mediaFolder (exists: $(Test-Path $mediaFolder))"
+Write-Host ":: Icon: $iconPath (exists: $(Test-Path $iconPath))"
+Write-Host ":: Ini: $iniPath (exists: $(Test-Path $iniPath))"
+Write-Host ":: License: $licensePath (exists: $(Test-Path $licensePath))"
+Write-Host ":: Readme: $readmePath (exists: $(Test-Path $readmePath))"
+Write-Host ":: Tools: $toolsFolder (exists: $(Test-Path $toolsFolder))"
+Write-Host ":: Dat: $versionDat (exists: $(Test-Path $versionDat))"
+Write-Host ":: Txt: $versionTxt (exists: $(Test-Path $versionTxt))"
+Write-Host ":: Template: $versionTpl (exists: $(Test-Path $versionTpl))"
+Write-Host ":: Output will be: $baseExeName.exe"
 
 # Build the argument list with proper quoting
 $arguments = @(
@@ -64,37 +72,38 @@ $arguments = @(
     "/icon", $iconPath
 )
 
-Write-Host "Full command:" -ForegroundColor Cyan
-Write-Host "`"$ahk2exePath`" $($arguments -join ' ')"
+Write-Host ":: Full command:" -ForegroundColor Cyan
+Write-Host ":: `"$ahk2exePath`" $($arguments -join ' ')"
 
 # Execute with detailed error capture
-Write-Host "_ Executing..." -ForegroundColor Green
+Write-Host ":: Executing..." -ForegroundColor Green
 $process = Start-Process -FilePath $ahk2exePath -ArgumentList $arguments -Wait -PassThru -NoNewWindow
 
-Write-Host "_ Process exit code: $($process.ExitCode)"
+Write-Host ":: Process exit code: $($process.ExitCode)"
 
 # Check if output file was created
 if (Test-Path "$baseExeName.exe") {
-    Write-Host "_ Compilation successful!" -ForegroundColor Green
+    Write-Host ":: Compilation successful!" -ForegroundColor Green
     Copy-Item "$baseExeName.exe" "$finalExe" -Force
-    Write-Host "_ Copied $baseExeName.exe to $finalExe (timestamped build EXE)"
+    Write-Host ":: Copied $baseExeName.exe to $finalExe (timestamped build EXE)"
 } else {
-    Write-Host "_ Output file not created!" -ForegroundColor Red
+    Write-Host ":: Output file not created!" -ForegroundColor Red
     Write-Error "Compilation failed."
     Exit 1
 }
 
 
 # === COMPRESS EXE ===
-Write-Host "_ Compressing exe..." -ForegroundColor Cyan
-Write-Host "_ Pre-UPX size:" (Get-Item $finalExe).Length
+Write-Host ":: Compressing exe..." -ForegroundColor Cyan
+Write-Host ":: Pre-UPX size:" (Get-Item $finalExe).Length
 $upxResult = & $upxPath --best --lzma $finalExe
 $upxResult | ForEach-Object { Write-Host $_ }
-Write-Host "_ Post-UPX size:" (Get-Item $finalExe).Length
-Write-Host "_ UPX compression finished."
+Write-Host ":: Post-UPX size:" (Get-Item $finalExe).Length
+Write-Host ":: UPX compression finished."
+
 
 # === ZIP CONTENTS ===
-Write-Host "_ Creating ZIP: $zipName"
+Write-Host ":: Creating ZIP: $zipName"
 
 # Build file list
 $allFiles = @()
@@ -102,18 +111,18 @@ $allFiles = @()
 # Add final executable
 if (Test-Path $finalExe) {
     $allFiles += $finalExe
-    Write-Host "_ Added: $finalExe"
+    Write-Host ":: Added: $finalExe"
 } else {
-    Write-Host "Warning: $finalExe not found!" -ForegroundColor Yellow
+    Write-Host ":: Warning: $finalExe not found!" -ForegroundColor Yellow
 }
 
 # Add extra assets
 foreach ($asset in $extraAssets) {
     if (Test-Path $asset) {
         $allFiles += $asset
-        Write-Host "Added: $asset"
+        Write-Host ":: Added: $asset"
     } else {
-        Write-Host "Warning: $asset not found!" -ForegroundColor Yellow
+        Write-Host ":: Warning: $asset not found!" -ForegroundColor Yellow
     }
 }
 
@@ -121,9 +130,9 @@ foreach ($asset in $extraAssets) {
 if (Test-Path $mediaFolder) {
     $mediaFiles = Get-ChildItem -Path $mediaFolder -File | ForEach-Object { $_.FullName }
     $allFiles += $mediaFiles
-    Write-Host "Added $($mediaFiles.Count) files from $mediaFolder"
+    Write-Host ":: Added $($mediaFiles.Count) files from $mediaFolder"
 } else {
-    Write-Host "Warning: $mediaFolder not found!" -ForegroundColor Yellow
+    Write-Host ":: Warning: $mediaFolder not found!" -ForegroundColor Yellow
 }
 
 # Add tools folder files
@@ -131,10 +140,10 @@ if (Test-Path $toolsFolder) {
     $toolsFiles = Get-ChildItem -Path $toolsFolder -Recurse | Where-Object { !$_.PSIsContainer } | ForEach-Object { $_.FullName }
     if ($toolsFiles) {
         $allFiles += $toolsFiles
-        Write-Host "Added $($toolsFiles.Count) files from $toolsFolder"
+        Write-Host ":: Added $($toolsFiles.Count) files from $toolsFolder"
     }
 } else {
-    Write-Host "Warning: $toolsFolder not found!" -ForegroundColor Yellow
+    Write-Host ":: Warning: $toolsFolder not found!" -ForegroundColor Yellow
 }
 
 # Add placeholder files for empty folders
@@ -145,13 +154,13 @@ foreach ($folder in $emptyFolders) {
     $placeholderPath = "$folder\.placeholder"
     New-Item -Path $placeholderPath -ItemType File -Force | Out-Null
     $allFiles += $placeholderPath
-    Write-Host "Added placeholder: $placeholderPath"
+    Write-Host ":: Added placeholder: $placeholderPath"
 }
 
 # Remove any missing paths
 $allFiles = $allFiles | Where-Object { Test-Path $_ }
 
-Write-Host "_ Total files to zip: $($allFiles.Count)"
+Write-Host ":: Total files to zip: $($allFiles.Count)"
 
 # Create build staging folder
 $stagingFolder = "build_temp"
@@ -170,18 +179,18 @@ foreach ($file in $allFiles) {
 # Create ZIP from staging
 try {
     Compress-Archive -Path "$stagingFolder\*" -DestinationPath $zipName -Force
-    Write-Host "_ ZIP created successfully: $zipName" -ForegroundColor Green
+    Write-Host ":: ZIP created successfully: $zipName" -ForegroundColor Green
 } catch {
-    Write-Host "_ ZIP creation failed: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ":: ZIP creation failed: $($_.Exception.Message)" -ForegroundColor Red
 }
 
 # Cleanup
 Remove-Item $stagingFolder -R
-Write-Host "_ Fallback EXE created!" -ForegroundColor Yellow
-Write-Host "`n===== BUILD COMPLETE =====" -ForegroundColor Cyan
-Write-Host "Output EXE: $finalExe"
-Write-Host "ZIP Archive: $zipName"
-Write-Host "Timestamp: $timestamp"
+Write-Host ":: Fallback EXE created!" -ForegroundColor Yellow
+Write-Host ":: `n:: ===== BUILD COMPLETE =====" -ForegroundColor Cyan
+Write-Host ":: Output EXE: $finalExe"
+Write-Host ":: ZIP Archive: $zipName"
+Write-Host ":: Timestamp: $timestamp"
 
 
 # === MOVE OUTPUT TO NEW_BUILDS FOLDER ===
@@ -197,27 +206,27 @@ try {
     if (Test-Path $buildFolder) {
         $item = Get-Item $buildFolder
         if (-not $item.PSIsContainer) {
-            Write-Host "_ Removing file named 'new_builds' so we can create a folder instead..."
+            Write-Host ":: Removing file named 'new_builds' so we can create a folder instead..."
             Remove-Item $buildFolder -Force
         }
     }
 
     if (-not (Test-Path $buildFolder)) {
-        Write-Host "_ Creating build folder: $buildFolder"
+        Write-Host ":: Creating build folder: $buildFolder"
         New-Item -ItemType Directory -Path $buildFolder | Out-Null
     }
 
     # Move files to build folder
     foreach ($file in $outputFiles) {
         if (Test-Path $file) {
-            Write-Host "_ Moving $file to $buildFolder"
+            Write-Host ":: Moving $file to $buildFolder"
             Move-Item $file -Destination $buildFolder -Force
         } else {
             Write-Warning "File not found, skipping: $file"
         }
     }
 
-    Write-Host "_ All available files moved to: $buildFolder"
+    Write-Host ":: All available files moved to: $buildFolder"
 }
 catch {
     Write-Error "Error moving build files: $_"
@@ -226,15 +235,15 @@ catch {
 
 # === LOG SUCCESS ===
 "[$timestamp] Built $finalExe with embedded files" | Add-Content "changelog.txt"
-Write-Host "_ Done: $finalExe + $zipName"
+Write-Host ":: Done: $finalExe + $zipName"
 
-Write-Host "Script completed!" -ForegroundColor Yellow
+Write-Host ":: Script completed!" -ForegroundColor Green
 
 # Open folder of the moved executable
 $finalExeMoved = Join-Path $buildFolder (Split-Path $finalExe -Leaf)
 if (Test-Path $finalExeMoved) {
     Invoke-Item (Get-Item $finalExeMoved).DirectoryName
 } else {
-    Write-Warning "Moved file not found: $finalExeMoved"
+    Write-Warning ":: Moved file not found: $finalExeMoved"
 }
 

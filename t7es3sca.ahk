@@ -278,7 +278,7 @@ Gui, Add, Button, gViewConfig       x670 y265 w100 h50, VIEW  SETTINGS
 
 
 ; ─── text. ────────────────────────────────────────────────────────────
-Gui, Add, Text, x5 y325, Controls: Screenshot = control+S | Videocapture = control+C | Audiorecording = control+A
+Gui, Add, Text, x5 y325, Controls: Screenshot = F1 | Videocapture = F2 | Audiorecording = F3
 
 
 ; ─── status bar 1 ────────────────────────────────────────────────────────────
@@ -1123,7 +1123,7 @@ Extract7z(filePath, extractTo) {
 }
 
 ; ─── Hotkey for screenshot ─────────────────────────
-^s::
+F1::
     Gosub, Screenshot
 return
 
@@ -1219,7 +1219,7 @@ Screenshot:
 
 
 ; ─── Hotkey to toggle recording ─────────────────────────
-^c::
+F2::
     Gosub, VideoCapture
 return
 
@@ -1354,7 +1354,7 @@ return
 
 
 ; ─── Hotkey to toggle audio capture ─────────────────────
-^a::
+F3::
     Gosub, AudioCapture
 return
 
@@ -1373,6 +1373,12 @@ if !FileExist(nircmd) {
 ; Ensure ffmpeg exists
 if !FileExist(ffmpegExe) {
     MsgBox, 16, Error, ffmpeg.exe not found at:`n%ffmpegExe%
+    return
+}
+
+; ─── START recording if FFmpeg is not found ─────────────
+if !ProcessExist("TekkenGame-Win64-Shipping.exe") {
+    CustomTrayTip("Cannot Record, T7ES3 is not running.", 3)
     return
 }
 
@@ -1401,6 +1407,11 @@ IfMsgBox No
 {
     Process, Close, TekkenGame-Win64-Shipping.exe
     MsgBox, 48, Info, T7ES3 was closed because it must use the correct audio devices.
+    return
+}
+
+if !ProcessExist("TekkenGame-Win64-Shipping.exe") {
+    CustomTrayTip("Cannot Record, T7ES3 is not running.", 1)
     return
 }
 
@@ -1449,17 +1460,10 @@ if !FileExist(nircmd) {
     return
 }
 
-
 RunWait, "%nircmd%" setdefaultsounddevice "VoiceMeeter Input" 1 /nosplash,, Hide
 Sleep, 200
 RunWait, "%nircmd%" setdefaultsounddevice "Voicemeeter Out B3" 1 /nosplash,, Hide
 Sleep, 200
-
-
-;    RunWait, "%nircmd%" setdefaultsounddevice "CABLE Input" 1 /nosplash,, Hide
-;    Sleep, 200
-;    RunWait, "%nircmd%" setdefaultsounddevice "CABLE Output" 1 /nosplash,, Hide
-;    Sleep, 200
 
 ; Refresh audio system
 DllCall("winmm.dll\waveOutMessage", "UInt", -1, "UInt", 0x3CD, "UPtr", 0, "UPtr", 0)
