@@ -1,15 +1,18 @@
 # === CONFIG ===
-$scriptName     = "t7es3sca.ahk"
 $baseExeName    = "t7es3sca"
+$scriptName     = "t7es3sca.ahk"
 $ahk2exePath    = "ahk\Compiler\Ahk2Exe.exe"
 $upxPath        = "upx\upx.exe"
 $mediaFolder    = "t7es3_media"
 $iconPath       = "t7es3_media\default.ico"
+$iniPath        = "t7es3.ini"
+$licensePath    = "LICENSE"
+$readmePath     = "README.txt"
 $toolsFolder    = "t7es3_tools"
 $versionDat     = "version.dat"
 $versionTxt     = "version.txt"
 $versionTpl     = "version_template.txt"
-$extraAssets    = @("README.txt", "t7es3.ini", "LICENSE", $versionTxt, $versionDat)
+$extraAssets    = @($readmePath, $iniPath, $licensePath, $versionTxt, $versionDat)
 
 
 # === GET ENVIRONMENT INFO ===
@@ -42,8 +45,16 @@ Write-Host "_ Current directory: $(Get-Location)"
 Write-Host "Path verification:" -ForegroundColor Yellow
 Write-Host "- Script: $scriptName (exists: $(Test-Path $scriptName))"
 Write-Host "- Ahk2Exe: $ahk2exePath (exists: $(Test-Path $ahk2exePath))"
-Write-Host "- Icon: $iconPath (exists: $(Test-Path $iconPath))"
 Write-Host "- UPX: $upxPath (exists: $(Test-Path $upxPath))"
+Write-Host "- MediaFolder: $mediaFolder (exists: $(Test-Path $mediaFolder))"
+Write-Host "- Icon: $iconPath (exists: $(Test-Path $iconPath))"
+Write-Host "- Ini: $iniPath (exists: $(Test-Path $iniPath))"
+Write-Host "- License: $licensePath (exists: $(Test-Path $licensePath))"
+Write-Host "- Readme: $readmePath (exists: $(Test-Path $readmePath))"
+Write-Host "- Tools: $toolsFolder (exists: $(Test-Path $toolsFolder))"
+Write-Host "- Dat: $versionDat (exists: $(Test-Path $versionDat))"
+Write-Host "- Txt: $versionTxt (exists: $(Test-Path $versionTxt))"
+Write-Host "- Template: $versionTpl (exists: $(Test-Path $versionTpl))"
 Write-Host "- Output will be: $baseExeName.exe"
 
 # Build the argument list with proper quoting
@@ -75,6 +86,7 @@ if (Test-Path "$baseExeName.exe") {
 
 
 # === COMPRESS EXE ===
+Write-Host "_ Compressing exe..." -ForegroundColor Cyan
 Write-Host "_ Pre-UPX size:" (Get-Item $finalExe).Length
 $upxResult = & $upxPath --best --lzma $finalExe
 $upxResult | ForEach-Object { Write-Host $_ }

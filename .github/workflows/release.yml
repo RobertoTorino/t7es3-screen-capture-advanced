@@ -30,12 +30,13 @@ jobs:
           $ErrorActionPreference = 'Stop'
 
           $repoRoot     = $env:GITHUB_WORKSPACE
-          $mediaFolder  = Join-Path $repoRoot "t7es3_media"
-          $ahkCompiler  = Join-Path $repoRoot "ahk\Compiler\Ahk2Exe.exe"
           $baseFile     = Join-Path $repoRoot "ahk\Compiler\Unicode 32-bit.bin"
+          $ahkCompiler  = Join-Path $repoRoot "ahk\Compiler\Ahk2Exe.exe"
+          $mediaFolder  = Join-Path $repoRoot "t7es3_media"
           $input        = Join-Path $repoRoot "t7es3sca.ahk"
           $output       = Join-Path $repoRoot "t7es3sca.exe"
           $icon         = Join-Path $repoRoot "t7es3_media\default.ico"
+          $iniPath      = "t7es3.ini"
           $upxPath      = Join-Path $repoRoot "upx\upx.exe"
           $versionTxt   = Join-Path $repoRoot "version.txt"
           $versionDat   = Join-Path $repoRoot "version.dat"
@@ -52,7 +53,7 @@ jobs:
             Write-Host ":: Found: $file"
           }
 
-          foreach ($file in @($ahkCompiler, $baseFile, $input, $icon)) {
+          foreach ($file in @($baseFile, $ahkCompiler, $input, $icon, $iniPath)) {
           if (!(Test-Path $file)) {
           Write-Error "Required file missing: $file"
           exit 1
