@@ -2,6 +2,8 @@
 
 **Advanced screen capture tool for T7ES3.**
 
+**Works for all PC and Arcade versions of Tekken 7**
+
 
 #### Prerequisites:
 - nircmd

@@ -233,10 +233,10 @@ Gui, Add, Button,                           x670 y145 w100 h50,
 ; ─── Screen manager. ────────────────────────────────────────────────────────────
 Gui, Add, Button, vSizeFull gSetSizeChoice          x120 y85 w100 h50, FULLSCREEN
 Gui, Add, Button, vSizeWindowed gSetSizeChoice      x230 y85 w100 h50, WINDOWED
-Gui, Add, Button, vSizeHidden                       x340 y85 w100 h50, HIDDEN
-Gui, Add, Button, gMoveToMonitor                    x450 y85 w100 h50, SWITCH MONITOR 1/2
-Gui, Add, Button, gResetScreen                      x560 y85 w100 h50, RESET SCREEN
-Gui, Add, Button,                                   x670 y85 w100 h50,
+Gui, Add, Button, gSetSizeChoice vSizeBorderless    x340 y85 w100 h50, BORDERLESS
+Gui, Add, Button, vSizeHidden                       x450 y85 w100 h50, HIDDEN
+Gui, Add, Button, gMoveToMonitor                    x560 y85 w100 h50, SWITCH MONITOR 1/2
+Gui, Add, Button, gResetScreen                      x670 y85 w100 h50, RESET SCREEN
 
 
 ; ─── media. ────────────────────────────────────────────────────────────
@@ -834,7 +834,7 @@ clicked := A_GuiControl
 Global SizeChoice, iniFile
 
 ; map control names to size values
-sizes := { "SizeFull": "FULLSCREEN", "SizeWindowed":  "WINDOWED", "SizeHidden": "HIDDEN" }
+sizes := { "SizeFull": "FULLSCREEN", "SizeWindowed":  "WINDOWED", "SizeBorderless": "BORDERLESS", "SizeHidden": "HIDDEN" }
 
 ; save selected size
 SizeChoice := sizes[clicked]
@@ -868,7 +868,8 @@ ResizeWindow:
     ;-----------------------------------------------------------------
     ; 2. helper to turn any fixed-size choice into “fake-fullscreen”
     ;-----------------------------------------------------------------
-    FakeFullscreen(width, height)
+    ; FakeFullscreen(width, height)
+    BorderlessFullscreen()
     {
         ; remove borders / title bar
         Global WinID
@@ -906,22 +907,24 @@ ResizeWindow:
         WinRestore, %WinID%
         WinMaximize, %WinID%
     }
-    ; windowed mode you already had (keeps borders, uses INI size)
-    else if (SizeChoice = "Windowed") {
-    ; Restore normal window styles
-    WinSet, Style, +0xC00000, %WinID%       ; WS_CAPTION (title bar)
-    WinSet, Style, +0x800000, %WinID%       ; WS_BORDER
-    WinSet, Style, +0x20000,  %WinID%       ; WS_MINIMIZEBOX
-    WinSet, Style, +0x10000,  %WinID%       ; WS_MAXIMIZEBOX
-    WinSet, Style, +0x40000,  %WinID%       ; WS_SYSMENU (close button)
-    WinSet, ExStyle, +0x00040000, %WinID%   ; WS_EX_DLGMODALFRAME
-
-    WinShow, %WinID%
-    WinRestore, %WinID%
-    WinMaximize, %WinID%
+   else if (SizeChoice = "BORDERLESS") {
+        BorderlessFullscreen()
     }
-    else if (SizeChoice = "Hidden")
+    else if (SizeChoice = "WINDOWED") {
+        ; restore borders
+        WinSet, Style, +0xC00000, %WinID%       ; WS_CAPTION
+        WinSet, Style, +0x800000, %WinID%       ; WS_BORDER
+        WinSet, Style, +0x20000,  %WinID%       ; WS_MINIMIZEBOX
+        WinSet, Style, +0x10000,  %WinID%       ; WS_MAXIMIZEBOX
+        WinSet, Style, +0x40000,  %WinID%       ; WS_SYSMENU
+        WinSet, ExStyle, +0x00040000, %WinID%
+        WinShow, %WinID%
+        WinRestore, %WinID%
+        WinMaximize, %WinID%
+    }
+    else if (SizeChoice = "HIDDEN") {
         WinHide, %WinID%
+    }
 return
 
 
