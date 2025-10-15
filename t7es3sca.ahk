@@ -855,9 +855,6 @@ ResizeWindow:
     Gui, Submit, NoHide
     setText("Current SizeChoice: " . SizeChoice)
 
-    ;-----------------------------------------------------------------
-    ;  1. make sure T7ES3 is running, get HWND
-    ;-----------------------------------------------------------------
     WinGet, hwnd, ID, ahk_exe TekkenGame-Win64-Shipping.exe
     if !hwnd {
         MsgBox, TekkenGame is not running.
@@ -865,20 +862,17 @@ ResizeWindow:
     }
     WinID := "ahk_id " hwnd
 
-    ;-----------------------------------------------------------------
-    ; 2. helper to turn any fixed-size choice into “fake-fullscreen”
-    ;-----------------------------------------------------------------
-    ; FakeFullscreen(width, height)
-    BorderlessFullscreen()
+    ; helper to remove chrome and fill the current monitor
+    MakeBorderlessFullscreen()
     {
-        ; remove borders / title bar
         Global WinID
-        WinSet, Style, -0xC00000, %WinID%  ; WS_CAPTION
-        WinSet, Style, -0x800000, %WinID%  ; WS_BORDER
-        WinSet, ExStyle, -0x00040000, %WinID%  ; WS_EX_DLGMODALFRAME
+        ; strip borders and title bar
+        WinSet, Style, -0xC00000, %WinID%
+        WinSet, Style, -0x800000, %WinID%
+        WinSet, ExStyle, -0x00040000, %WinID%
         WinShow, %WinID%
 
-        ; which monitor is the window on?
+        ; find monitor where window currently sits
         WinGetPos, winX, winY, , , %WinID%
         SysGet, MonitorCount, MonitorCount
         Loop, %MonitorCount% {
@@ -893,34 +887,30 @@ ResizeWindow:
             }
         }
 
-        ; centre the custom-sized window
-        newX := monLeft + (monWidth  - width)  // 2
-        newY := monTop  + (monHeight - height) // 2
-        WinMove, %WinID%, , %newX%, %newY%, %width%, %height%
+        ; fill entire monitor
+        WinMove, %WinID%, , monLeft, monTop, monWidth, monHeight
     }
 
-    ;-----------------------------------------------------------------
-    ; 3. act on the user’s SizeChoice
-    ;-----------------------------------------------------------------
-    ; native maximised / true fullscreen
+    ;──────────────────────────────────────────────────────────
+    ; apply selected mode
+    ;──────────────────────────────────────────────────────────
     if (SizeChoice = "FULLSCREEN") {
-        WinRestore, %WinID%
-        WinMaximize, %WinID%
+        ; avoid WinMaximize (causes ghost window in Vulkan)
+        MakeBorderlessFullscreen()
     }
-   else if (SizeChoice = "BORDERLESS") {
-        BorderlessFullscreen()
+    else if (SizeChoice = "BORDERLESS") {
+        MakeBorderlessFullscreen()
     }
     else if (SizeChoice = "WINDOWED") {
-        ; restore borders
-        WinSet, Style, +0xC00000, %WinID%       ; WS_CAPTION
-        WinSet, Style, +0x800000, %WinID%       ; WS_BORDER
-        WinSet, Style, +0x20000,  %WinID%       ; WS_MINIMIZEBOX
-        WinSet, Style, +0x10000,  %WinID%       ; WS_MAXIMIZEBOX
-        WinSet, Style, +0x40000,  %WinID%       ; WS_SYSMENU
+        ; restore normal window frame
+        WinSet, Style, +0xC00000, %WinID%
+        WinSet, Style, +0x800000, %WinID%
+        WinSet, Style, +0x20000,  %WinID%   ; WS_MINIMIZEBOX
+        WinSet, Style, +0x10000,  %WinID%   ; WS_MAXIMIZEBOX
+        WinSet, Style, +0x40000,  %WinID%   ; WS_SYSMENU
         WinSet, ExStyle, +0x00040000, %WinID%
         WinShow, %WinID%
         WinRestore, %WinID%
-        WinMaximize, %WinID%
     }
     else if (SizeChoice = "HIDDEN") {
         WinHide, %WinID%
@@ -970,10 +960,16 @@ MoveWindowToOtherMonitor(exeName) {
     }
 
     WinRestore, ahk_id %hwnd%
+    ; remove borders and title bar
     WinSet, Style, -0xC00000, ahk_id %hwnd%
     WinSet, Style, -0x800000, ahk_id %hwnd%
+    WinSet, ExStyle, -0x00040000, ahk_id %hwnd%
+    WinShow, ahk_id %hwnd%
+
+    ; move & resize to fill target monitor
     WinMove, ahk_id %hwnd%, , targetLeft, targetTop, targetW, targetH
 }
+
 
 ; ─── reset to defaults for window positions. ───────────────────────────────────────────────────────────────────
 ResetScreen:
@@ -982,7 +978,7 @@ Global SizeChoice, DefaultSize, iniFile
 SizeChoice := DefaultSize
 
 ; Update size buttons
-sizeToControl := { "FULLSCREEN": "SizeFull", "WINDOWED": "SizeWindowed", "HIDDEN": "SizeHidden" }
+sizeToControl := { "FULLSCREEN": "SizeFull", "WINDOWED": "SizeWindowed", "BORDERLESS": "SizeBorderless", "HIDDEN": "SizeHidden" }
 
 for key, val in sizeToControl {
     label := (key = SizeChoice) ? "[" . key . "]" : key
