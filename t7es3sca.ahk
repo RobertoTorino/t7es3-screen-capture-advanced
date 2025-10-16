@@ -94,21 +94,6 @@ if (t7es3Path != "") {
 IniRead, lastGameExe, %iniFile%, LAST_PLAYED, GameExe, UnknownID
 
 
-; ─── save screen size. ────────────────────────────────────────────────────────────────────
-IniRead, SavedSize, %iniFile%, SIZE_SETTINGS, SizeChoice, BORDERLESS
-SizeChoice := SavedSize
-selectedControl := sizeToControl[SavedSize]
-for key, val in sizeToControl {
-    label := (val = selectedControl) ? "[" . key . "]" : key
-    GuiControl,, %val%, %label%
-}
-DefaultSize := "BORDERLESS"
-
-
-; ─── load window settings from ini. ────────────────────────────────────────────────────────────────────
-IniRead, SizeChoice, %iniFile%, SIZE_SETTINGS, SizeChoice, %DefaultSize%
-
-
 GetCommandOutput(cmd) {
     tmpFile := A_Temp "\cmd_output.txt"
     ; Wrap the entire cmd in double-quotes to preserve quoted paths inside
@@ -231,12 +216,12 @@ Gui, Add, Button,                           x670 y145 w100 h50,
 
 
 ; ─── Screen manager. ────────────────────────────────────────────────────────────
-Gui, Add, Button, vSizeFull gSetSizeChoice          x120 y85 w100 h50, FULLSCREEN
-Gui, Add, Button, vSizeWindowed gSetSizeChoice      x230 y85 w100 h50, WINDOWED
-Gui, Add, Button, gSetSizeChoice vSizeBorderless    x340 y85 w100 h50, BORDERLESS
-Gui, Add, Button, vSizeHidden                       x450 y85 w100 h50, HIDDEN
-Gui, Add, Button, gMoveToMonitor                    x560 y85 w100 h50, SWITCH MONITOR 1/2
-Gui, Add, Button, gResetScreen                      x670 y85 w100 h50, RESET SCREEN
+Gui, Add, Button, gMoveToMonitor                    x120 y85 w100 h50, SWITCH MONITOR 1/2
+Gui, Add, Button,                                   x230 y85 w100 h50,
+Gui, Add, Button,                                   x340 y85 w100 h50,
+Gui, Add, Button,                                   x450 y85 w100 h50,
+Gui, Add, Button,                                   x560 y85 w100 h50,
+Gui, Add, Button,                                   x670 y85 w100 h50,
 
 
 ; ─── media. ────────────────────────────────────────────────────────────
@@ -611,7 +596,7 @@ RunTekkenGame:
 
     ; Kill any existing TekkenGame process by exe name
     RunWait, taskkill /im %TekkenGameExe% /F,, Hide
-    Sleep, 1000
+    Sleep, 500
 
     ; Launch TekkenGame
     Run, %TekkenGamePath%
@@ -845,90 +830,7 @@ KillAllProcessesEsc() {
     Log("INFO", "ESC pressed. Killing all T7ES3 processes.")
 }
 
-; ─── set window size handler ─────────────────────────────────────────────────────────────
-SetSizeChoice:
-clicked := A_GuiControl
-Global SizeChoice, iniFile
 
-; map control names to size values
-sizes := { "SizeFull": "FULLSCREEN", "SizeWindowed": "WINDOWED", "SizeBorderless": "BORDERLESS", "SizeHidden": "HIDDEN" }
-
-; save selected size
-SizeChoice := sizes[clicked]
-IniWrite, %SizeChoice%, %iniFile%, SIZE_SETTINGS, SizeChoice
-
-; update visuals
-for key, val in sizes {
-    label := (key = clicked) ? "[" . val . "]" : val
-    GuiControl,, %key%, %label%
-}
-
-; immediately apply the size
-GoSub, ResizeWindow
-return
-
-
-; ─── resize window safely ─────────────────────────────────────────────────────────────
-ResizeWindow:
-Global iniFile
-Gui, Submit, NoHide
-setText("Current SizeChoice: " . SizeChoice)
-
-WinGet, hwnd, ID, ahk_exe TekkenGame-Win64-Shipping.exe
-if !hwnd {
-    MsgBox, TekkenGame is not running.
-    return
-}
-WinID := "ahk_id " hwnd
-
-; make borderless fullscreen safely
-MakeBorderlessFullscreenSafe(hwnd)
-return
-
-
-; ─── helper: borderless fullscreen function ─────────────────────────────────────────────
-MakeBorderlessFullscreenSafe(hwnd) {
-    if !hwnd
-        return
-
-    WinShow, ahk_id %hwnd%
-    WinRestore, ahk_id %hwnd%
-    Sleep, 120
-
-    ; get monitor for window
-    WinGetPos, winX, winY, winW, winH, ahk_id %hwnd%
-    centerX := winX + winW // 2
-    centerY := winY + winH // 2
-
-    SysGet, MonCount, MonitorCount
-    Loop, %MonCount% {
-        SysGet, Mon, Monitor, %A_Index%
-        if (centerX >= MonLeft && centerX < MonRight && centerY >= MonTop && centerY < MonBottom) {
-            targetX := MonLeft
-            targetY := MonTop
-            targetW := MonRight - MonLeft
-            targetH := MonBottom - MonTop
-            break
-        }
-    }
-
-    ; fallback to primary
-    if (!targetW) {
-        SysGet, Mon, Monitor, 1
-        targetX := MonLeft
-        targetY := MonTop
-        targetW := MonRight - MonLeft
-        targetH := MonBottom - MonTop
-    }
-
-    ; remove borders
-    WinSet, Style, -0xC00000, ahk_id %hwnd%
-    WinSet, Style, -0x800000, ahk_id %hwnd%
-    WinSet, ExStyle, -0x00040000, ahk_id %hwnd%
-    WinMove, ahk_id %hwnd%, , targetX, targetY, targetW, targetH
-    DllCall("RedrawWindow", "ptr", hwnd, "ptr", 0, "ptr", 0, "uint", 0x85)
-    Sleep, 50
-}
 
 
 ; ─── move to next monitor ─────────────────────────────────────────────────────────────
@@ -968,7 +870,7 @@ MoveWindowToOtherMonitor(exeName) {
     Sleep, 80
 
     WinMove, ahk_id %hwnd%, , targetLeft, targetTop, targetW, targetH
-    MakeBorderlessFullscreenSafe(hwnd)
+
     return
 }
 
@@ -977,22 +879,6 @@ MoveWindowToOtherMonitor(exeName) {
 MoveToMonitor:
 MoveWindowToOtherMonitor("TekkenGame-Win64-Shipping.exe")
 return
-
-
-; ─── reset screen settings ─────────────────────────────────────────────────────────────
-ResetScreen:
-Global SizeChoice, DefaultSize, iniFile
-SizeChoice := DefaultSize
-
-sizeToControl := { "FULLSCREEN": "SizeFull", "WINDOWED": "SizeWindowed", "BORDERLESS": "SizeBorderless", "HIDDEN": "SizeHidden" }
-for key, val in sizeToControl {
-    label := (key = SizeChoice) ? "[" . key . "]" : key
-    GuiControl,, %val%, %label%
-}
-IniWrite, %SizeChoice%, %iniFile%, SIZE_SETTINGS, SizeChoice
-return
-
-
 
 
 ; ─── Log function. ────────────────────────────────────────────────────────────────────
