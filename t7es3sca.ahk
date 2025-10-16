@@ -862,17 +862,23 @@ ResizeWindow:
     }
     WinID := "ahk_id " hwnd
 
-    ; helper to remove chrome and fill the current monitor
+    ; helper: safely make borderless fullscreen on active monitor
     MakeBorderlessFullscreen()
     {
         Global WinID
-        ; strip borders and title bar
+        ; wait until window is active and visible
+        WinWaitActive, %WinID%, , 2
+        ; temporarily suspend redraw to avoid flicker/ghost
+        SendMessage, 0xB, 0, 0,, %WinID%   ; WM_SETREDRAW off
+
+        ; remove borders/title
         WinSet, Style, -0xC00000, %WinID%
         WinSet, Style, -0x800000, %WinID%
         WinSet, ExStyle, -0x00040000, %WinID%
         WinShow, %WinID%
+        WinRestore, %WinID%
 
-        ; find monitor where window currently sits
+        ; find which monitor it's on
         WinGetPos, winX, winY, , , %WinID%
         SysGet, MonitorCount, MonitorCount
         Loop, %MonitorCount% {
@@ -887,22 +893,22 @@ ResizeWindow:
             }
         }
 
-        ; fill entire monitor
+        ; move & resize to fill monitor
         WinMove, %WinID%, , monLeft, monTop, monWidth, monHeight
+
+        ; resume redraw and refresh
+        SendMessage, 0xB, 1, 0,, %WinID%
+        DllCall("RedrawWindow", "ptr", hwnd, "ptr", 0, "ptr", 0, "uint", 0x85)
     }
 
-    ;──────────────────────────────────────────────────────────
-    ; apply selected mode
-    ;──────────────────────────────────────────────────────────
-    if (SizeChoice = "FULLSCREEN") {
-        ; avoid WinMaximize (causes ghost window in Vulkan)
-        MakeBorderlessFullscreen()
-    }
-    else if (SizeChoice = "BORDERLESS") {
+    ;───────────────────────────────────────────────
+    ; Apply mode safely
+    ;───────────────────────────────────────────────
+    if (SizeChoice = "FULLSCREEN" || SizeChoice = "BORDERLESS") {
         MakeBorderlessFullscreen()
     }
     else if (SizeChoice = "WINDOWED") {
-        ; restore normal window frame
+        WinRestore, %WinID%
         WinSet, Style, +0xC00000, %WinID%
         WinSet, Style, +0x800000, %WinID%
         WinSet, Style, +0x20000,  %WinID%   ; WS_MINIMIZEBOX
@@ -910,12 +916,13 @@ ResizeWindow:
         WinSet, Style, +0x40000,  %WinID%   ; WS_SYSMENU
         WinSet, ExStyle, +0x00040000, %WinID%
         WinShow, %WinID%
-        WinRestore, %WinID%
+        DllCall("RedrawWindow", "ptr", hwnd, "ptr", 0, "ptr", 0, "uint", 0x85)
     }
     else if (SizeChoice = "HIDDEN") {
         WinHide, %WinID%
     }
 return
+
 
 
 ; ─── switch between monitors handler. ───────────────────────────────────────────────────────────────────
@@ -959,16 +966,17 @@ MoveWindowToOtherMonitor(exeName) {
         targetH := Mon1Bottom - Mon1Top
     }
 
-    WinRestore, ahk_id %hwnd%
-    ; remove borders and title bar
+    WinWaitActive, ahk_id %hwnd%, , 2
+    SendMessage, 0xB, 0, 0,, ahk_id %hwnd%
     WinSet, Style, -0xC00000, ahk_id %hwnd%
     WinSet, Style, -0x800000, ahk_id %hwnd%
     WinSet, ExStyle, -0x00040000, ahk_id %hwnd%
     WinShow, ahk_id %hwnd%
-
-    ; move & resize to fill target monitor
     WinMove, ahk_id %hwnd%, , targetLeft, targetTop, targetW, targetH
+    SendMessage, 0xB, 1, 0,, ahk_id %hwnd%
+    DllCall("RedrawWindow", "ptr", hwnd, "ptr", 0, "ptr", 0, "uint", 0x85)
 }
+
 
 
 ; ─── reset to defaults for window positions. ───────────────────────────────────────────────────────────────────
@@ -1243,7 +1251,7 @@ if (ffmpegPIDRunning) {
 
 ; ─── START recording if FFmpeg is not found ─────────────
 if !ProcessExist("TekkenGame-Win64-Shipping.exe") {
-    CustomTrayTip("Cannot Record, T7ES3 is not running.", 3)
+    CustomTrayTip("Cannot Record, TEKKEN 7 is not running.", 3)
     return
 }
 
@@ -1255,7 +1263,7 @@ IfMsgBox No
 }
 
 if !ProcessExist("TekkenGame-Win64-Shipping.exe") {
-    CustomTrayTip("Cannot Record, T7ES3 is not running.", 1)
+    CustomTrayTip("Cannot Record, TEKKEN 7 is not running.", 1)
     return
 }
 
@@ -1335,7 +1343,7 @@ if !FileExist(ffmpegExe) {
 
 ; ─── START recording if FFmpeg is not found ─────────────
 if !ProcessExist("TekkenGame-Win64-Shipping.exe") {
-    CustomTrayTip("Cannot Record, T7ES3 is not running.", 3)
+    CustomTrayTip("Cannot Record, TEKKEN 7 is not running.", 3)
     return
 }
 
@@ -1367,7 +1375,7 @@ IfMsgBox No
 }
 
 if !ProcessExist("TekkenGame-Win64-Shipping.exe") {
-    CustomTrayTip("Cannot Record, T7ES3 is not running.", 1)
+    CustomTrayTip("Cannot Record, TEKKEN 7 is not running.", 1)
     return
 }
 
@@ -1483,7 +1491,7 @@ return
 UpdatePriority:
     Process, Exist, TekkenGame-Win64-Shipping.exe
     if (!ErrorLevel) {
-        GuiControl,, CurrentPriority, T7ES3 is not running.
+        GuiControl,, CurrentPriority, TEKKEN 7 is not running.
         GuiControl, Disable, PriorityChoice
         GuiControl, Disable, Set Priority
         UpdateCPUMem()
