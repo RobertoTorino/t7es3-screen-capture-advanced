@@ -827,117 +827,93 @@ KillAllProcessesEsc() {
     Log("INFO", "ESC pressed. Killing all T7ES3 processes.")
 }
 
-
-; ─── set window size handler. ───────────────────────────────────────────────────────────────────
+; ─── set window size handler ─────────────────────────────────────────────────────────────
 SetSizeChoice:
 clicked := A_GuiControl
 Global SizeChoice, iniFile
 
 ; map control names to size values
-sizes := { "SizeFull": "FULLSCREEN", "SizeWindowed":  "WINDOWED", "SizeBorderless": "BORDERLESS", "SizeHidden": "HIDDEN" }
+sizes := { "SizeFull": "FULLSCREEN", "SizeWindowed": "WINDOWED", "SizeBorderless": "BORDERLESS", "SizeHidden": "HIDDEN" }
 
 ; save selected size
 SizeChoice := sizes[clicked]
 IniWrite, %SizeChoice%, %iniFile%, SIZE_SETTINGS, SizeChoice
 
-; update visuals (bracket the selected one)
+; update visuals
 for key, val in sizes {
     label := (key = clicked) ? "[" . val . "]" : val
     GuiControl,, %key%, %label%
 }
+
 ; immediately apply the size
 GoSub, ResizeWindow
 return
 
 
+; ─── resize window safely ─────────────────────────────────────────────────────────────
 ResizeWindow:
-    Global iniFile
-    Gui, Submit, NoHide
-    setText("Current SizeChoice: " . SizeChoice)
+Global iniFile
+Gui, Submit, NoHide
+setText("Current SizeChoice: " . SizeChoice)
 
-    WinGet, hwnd, ID, ahk_exe TekkenGame-Win64-Shipping.exe
-    if !hwnd {
-        MsgBox, TekkenGame is not running.
+WinGet, hwnd, ID, ahk_exe TekkenGame-Win64-Shipping.exe
+if !hwnd {
+    MsgBox, TekkenGame is not running.
+    return
+}
+WinID := "ahk_id " hwnd
+
+; make borderless fullscreen safely
+MakeBorderlessFullscreenSafe(hwnd)
+return
+
+
+; ─── helper: borderless fullscreen function ─────────────────────────────────────────────
+MakeBorderlessFullscreenSafe(hwnd) {
+    if !hwnd
         return
-    }
-    WinID := "ahk_id " hwnd
 
-    ; helper: safely make borderless fullscreen on active monitor
-    MakeBorderlessFullscreen()
-    {
-        Global WinID
-        ; wait until window is active and visible
-        WinWaitActive, %WinID%, , 2
-        ; temporarily suspend redraw to avoid flicker/ghost
-        SendMessage, 0xB, 0, 0,, %WinID%   ; WM_SETREDRAW off
+    WinShow, ahk_id %hwnd%
+    WinRestore, ahk_id %hwnd%
+    Sleep, 120
 
-        ; remove borders/title
-        WinSet, Style, -0xC00000, %WinID%
-        WinSet, Style, -0x800000, %WinID%
-        WinSet, ExStyle, -0x00040000, %WinID%
-        WinShow, %WinID%
-        WinRestore, %WinID%
+    ; get monitor for window
+    WinGetPos, winX, winY, winW, winH, ahk_id %hwnd%
+    centerX := winX + winW // 2
+    centerY := winY + winH // 2
 
-        ; find which monitor it's on
-        WinGetPos, winX, winY, , , %WinID%
-        SysGet, MonitorCount, MonitorCount
-        Loop, %MonitorCount% {
-            SysGet, Mon, Monitor, %A_Index%
-            if (winX >= MonLeft && winX < MonRight
-             && winY >= MonTop  && winY < MonBottom) {
-                monLeft   := MonLeft
-                monTop    := MonTop
-                monWidth  := MonRight  - MonLeft
-                monHeight := MonBottom - MonTop
-                break
-            }
+    SysGet, MonCount, MonitorCount
+    Loop, %MonCount% {
+        SysGet, Mon, Monitor, %A_Index%
+        if (centerX >= MonLeft && centerX < MonRight && centerY >= MonTop && centerY < MonBottom) {
+            targetX := MonLeft
+            targetY := MonTop
+            targetW := MonRight - MonLeft
+            targetH := MonBottom - MonTop
+            break
         }
-
-        ; move & resize to fill monitor
-        WinMove, %WinID%, , monLeft, monTop, monWidth, monHeight
-
-        ; resume redraw and refresh
-        SendMessage, 0xB, 1, 0,, %WinID%
-        DllCall("RedrawWindow", "ptr", hwnd, "ptr", 0, "ptr", 0, "uint", 0x85)
     }
 
-    ;───────────────────────────────────────────────
-    ; Apply mode safely
-    ;───────────────────────────────────────────────
-    if (SizeChoice = "FULLSCREEN" || SizeChoice = "BORDERLESS") {
-        MakeBorderlessFullscreen()
+    ; fallback to primary
+    if (!targetW) {
+        SysGet, Mon, Monitor, 1
+        targetX := MonLeft
+        targetY := MonTop
+        targetW := MonRight - MonLeft
+        targetH := MonBottom - MonTop
     }
-    else if (SizeChoice = "WINDOWED") {
-        WinRestore, %WinID%
-        WinSet, Style, +0xC00000, %WinID%
-        WinSet, Style, +0x800000, %WinID%
-        WinSet, Style, +0x20000,  %WinID%   ; WS_MINIMIZEBOX
-        WinSet, Style, +0x10000,  %WinID%   ; WS_MAXIMIZEBOX
-        WinSet, Style, +0x40000,  %WinID%   ; WS_SYSMENU
-        WinSet, ExStyle, +0x00040000, %WinID%
-        WinShow, %WinID%
-        DllCall("RedrawWindow", "ptr", hwnd, "ptr", 0, "ptr", 0, "uint", 0x85)
-    }
-    else if (SizeChoice = "HIDDEN") {
-        WinHide, %WinID%
-    }
-return
+
+    ; remove borders
+    WinSet, Style, -0xC00000, ahk_id %hwnd%
+    WinSet, Style, -0x800000, ahk_id %hwnd%
+    WinSet, ExStyle, -0x00040000, ahk_id %hwnd%
+    WinMove, ahk_id %hwnd%, , targetX, targetY, targetW, targetH
+    DllCall("RedrawWindow", "ptr", hwnd, "ptr", 0, "ptr", 0, "uint", 0x85)
+    Sleep, 50
+}
 
 
-
-; ─── switch between monitors handler. ───────────────────────────────────────────────────────────────────
-Run, TekkenGame-Win64-Shipping.exe,,, pid
-WinWait, ahk_exe TekkenGame-Win64-Shipping.exe
-
-
-; ─── monitor switch logic. ───────────────────────────────────────────────────────────────────
-MoveToMonitor:
-    MoveWindowToOtherMonitor("TekkenGame-Win64-Shipping.exe")
-return
-
-
-; ─── window functions. ───────────────────────────────────────────────────────────────────
-exeName := "TekkenGame-Win64-Shipping.exe"
+; ─── move to next monitor ─────────────────────────────────────────────────────────────
 MoveWindowToOtherMonitor(exeName) {
     WinGet, hwnd, ID, ahk_exe %exeName%
     if !hwnd {
@@ -945,56 +921,60 @@ MoveWindowToOtherMonitor(exeName) {
         return
     }
 
-    WinGetPos, winX, winY,,, ahk_id %hwnd%
-    SysGet, Mon1, Monitor, 1
-    SysGet, Mon2, Monitor, 2
+    WinGetPos, winX, winY, winW, winH, ahk_id %hwnd%
+    centerX := winX + winW // 2
+    centerY := winY + winH // 2
 
-    if (winX >= Mon1Left && winX < Mon1Right)
-        currentMon := 1
-    else
-        currentMon := 2
+    SysGet, MonCount, MonitorCount
+    if (MonCount < 2)
+        return
 
-    if (currentMon = 1) {
-        targetLeft := Mon2Left
-        targetTop := Mon2Top
-        targetW := Mon2Right - Mon2Left
-        targetH := Mon2Bottom - Mon2Top
-    } else {
-        targetLeft := Mon1Left
-        targetTop := Mon1Top
-        targetW := Mon1Right - Mon1Left
-        targetH := Mon1Bottom - Mon1Top
+    currentMon := 1
+    Loop, %MonCount% {
+        SysGet, Mon, Monitor, %A_Index%
+        if (centerX >= MonLeft && centerX < MonRight && centerY >= MonTop && centerY < MonBottom) {
+            currentMon := A_Index
+            break
+        }
     }
 
-    WinWaitActive, ahk_id %hwnd%, , 2
-    SendMessage, 0xB, 0, 0,, ahk_id %hwnd%
-    WinSet, Style, -0xC00000, ahk_id %hwnd%
-    WinSet, Style, -0x800000, ahk_id %hwnd%
-    WinSet, ExStyle, -0x00040000, ahk_id %hwnd%
+    targetMon := (currentMon < MonCount) ? currentMon + 1 : 1
+    SysGet, MonT, Monitor, %targetMon%
+    targetLeft := MonTLeft
+    targetTop  := MonTTop
+    targetW := MonTRight - MonTLeft
+    targetH := MonTBottom - MonTTop
+
     WinShow, ahk_id %hwnd%
+    WinRestore, ahk_id %hwnd%
+    Sleep, 80
+
     WinMove, ahk_id %hwnd%, , targetLeft, targetTop, targetW, targetH
-    SendMessage, 0xB, 1, 0,, ahk_id %hwnd%
-    DllCall("RedrawWindow", "ptr", hwnd, "ptr", 0, "ptr", 0, "uint", 0x85)
+    MakeBorderlessFullscreenSafe(hwnd)
+    return
 }
 
 
+; ─── hotkey or button handler for monitor switch ─────────────────────────────────────────────
+MoveToMonitor:
+MoveWindowToOtherMonitor("TekkenGame-Win64-Shipping.exe")
+return
 
-; ─── reset to defaults for window positions. ───────────────────────────────────────────────────────────────────
+
+; ─── reset screen settings ─────────────────────────────────────────────────────────────
 ResetScreen:
 Global SizeChoice, DefaultSize, iniFile
-; Restore defaults
 SizeChoice := DefaultSize
 
-; Update size buttons
 sizeToControl := { "FULLSCREEN": "SizeFull", "WINDOWED": "SizeWindowed", "BORDERLESS": "SizeBorderless", "HIDDEN": "SizeHidden" }
-
 for key, val in sizeToControl {
     label := (key = SizeChoice) ? "[" . key . "]" : key
     GuiControl,, %val%, %label%
 }
 IniWrite, %SizeChoice%, %iniFile%, SIZE_SETTINGS, SizeChoice
-
 return
+
+
 
 
 ; ─── Log function. ────────────────────────────────────────────────────────────────────
