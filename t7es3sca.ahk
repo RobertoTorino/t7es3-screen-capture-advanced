@@ -220,7 +220,7 @@ Gui, Add, Button,                       x670 y25 w100 h50,
 Gui, Add, Text,                             x10 y85, Process Priority:
 Gui, Add, DropDownList, vPriorityChoice     x10 y110 w100 r6, Idle|Below Normal|Normal|Above Normal|High|Realtime
 LoadSettings()
-Gui, Add, Text, x12 y5, Run this program from inside the Win64 folder. Use the escape button for a sound test or to quit T7ES3.
+Gui, Add, Text, x12 y5, Run this program from inside the Win64 folder. Use the escape button for a sound test or to quit the game.
 Gui, Add, Button, gSetPriority              x10 y145 w100 h50, SET PROCESS PRIORITY
 Gui, Add, Button,                           x120 y145 w100 h50,
 Gui, Add, Button,                           x230 y145 w100 h50,
@@ -234,7 +234,8 @@ Gui, Add, Button,                           x670 y145 w100 h50,
 Gui, Add, Button, vSizeFull gSetSizeChoice          x120 y85 w100 h50, FULLSCREEN
 Gui, Add, Button, vSizeWindowed gSetSizeChoice      x230 y85 w100 h50, WINDOWED
 Gui, Add, Button, gSetSizeChoice vSizeBorderless    x340 y85 w100 h50, BORDERLESS
-Gui, Add, Button, vSizeHidden                       x450 y85 w100 h50, HIDDEN
+;Gui, Add, Button, vSizeHidden                       x450 y85 w100 h50, HIDDEN
+Gui, Add, Button, gSetSizeChoice vSizeFullOld       x450 y85 w100 h50, FULLSCREEN ARCADE
 Gui, Add, Button, gMoveToMonitor                    x560 y85 w100 h50, SWITCH MONITOR 1/2
 Gui, Add, Button, gResetScreen                      x670 y85 w100 h50, RESET SCREEN
 
@@ -827,20 +828,27 @@ KillAllProcessesEsc() {
     Log("INFO", "ESC pressed. Killing all T7ES3 processes.")
 }
 
+
 ; ─── set window size handler ─────────────────────────────────────────────────────────────
 SetSizeChoice:
 clicked := A_GuiControl
 Global SizeChoice, iniFile
 
-; map control names to size values
-sizes := { "SizeFull": "FULLSCREEN", "SizeWindowed": "WINDOWED", "SizeBorderless": "BORDERLESS", "SizeHidden": "HIDDEN" }
+; map control names to size values (v1-compatible object)
+sizes := Object()
+sizes["SizeFull"] := "FULLSCREEN"
+sizes["SizeFullOld"] := "FULLSCREEN ARCADE"
+sizes["SizeWindowed"] := "WINDOWED"
+sizes["SizeBorderless"] := "BORDERLESS"
+sizes["SizeHidden"] := "HIDDEN"
 
 ; save selected size
 SizeChoice := sizes[clicked]
 IniWrite, %SizeChoice%, %iniFile%, SIZE_SETTINGS, SizeChoice
 
-; update visuals
-for key, val in sizes {
+; update visuals (highlight selected one)
+for key, val in sizes
+{
     label := (key = clicked) ? "[" . val . "]" : val
     GuiControl,, %key%, %label%
 }
@@ -850,9 +858,10 @@ GoSub, ResizeWindow
 return
 
 
-; ─── resize window safely ─────────────────────────────────────────────────────────────
+
+; ─── apply chosen size ─────────────────────────────────────────────────────────────
 ResizeWindow:
-Global iniFile
+Global iniFile, SizeChoice
 Gui, Submit, NoHide
 setText("Current SizeChoice: " . SizeChoice)
 
@@ -861,10 +870,18 @@ if !hwnd {
     MsgBox, TekkenGame is not running.
     return
 }
-WinID := "ahk_id " hwnd
 
-; make borderless fullscreen safely
-MakeBorderlessFullscreenSafe(hwnd)
+if (SizeChoice = "FULLSCREEN")
+    MakeBorderlessFullscreenSafe(hwnd)
+else if (SizeChoice = "FULLSCREEN_OLD")
+    MakeTrueFullscreen(hwnd)
+else if (SizeChoice = "BORDERLESS")
+    MakeBorderlessWindowed(hwnd)
+else if (SizeChoice = "WINDOWED")
+    WinRestore, ahk_id %hwnd%
+else if (SizeChoice = "HIDDEN")
+    WinHide, ahk_id %hwnd%
+
 return
 
 
@@ -872,48 +889,50 @@ return
 MakeBorderlessFullscreenSafe(hwnd) {
     if !hwnd
         return
-
     WinShow, ahk_id %hwnd%
     WinRestore, ahk_id %hwnd%
     Sleep, 120
-
-    ; get monitor for window
-    WinGetPos, winX, winY, winW, winH, ahk_id %hwnd%
-    centerX := winX + winW // 2
-    centerY := winY + winH // 2
-
-    SysGet, MonCount, MonitorCount
-    Loop, %MonCount% {
-        SysGet, Mon, Monitor, %A_Index%
-        if (centerX >= MonLeft && centerX < MonRight && centerY >= MonTop && centerY < MonBottom) {
-            targetX := MonLeft
-            targetY := MonTop
-            targetW := MonRight - MonLeft
-            targetH := MonBottom - MonTop
-            break
-        }
-    }
-
-    ; fallback to primary
-    if (!targetW) {
-        SysGet, Mon, Monitor, 1
-        targetX := MonLeft
-        targetY := MonTop
-        targetW := MonRight - MonLeft
-        targetH := MonBottom - MonTop
-    }
-
-    ; remove borders
+    SysGet, Mon, Monitor, 1
     WinSet, Style, -0xC00000, ahk_id %hwnd%
     WinSet, Style, -0x800000, ahk_id %hwnd%
     WinSet, ExStyle, -0x00040000, ahk_id %hwnd%
-    WinMove, ahk_id %hwnd%, , targetX, targetY, targetW, targetH
+    WinMove, ahk_id %hwnd%, , MonLeft, MonTop, MonRight - MonLeft, MonBottom - MonTop
     DllCall("RedrawWindow", "ptr", hwnd, "ptr", 0, "ptr", 0, "uint", 0x85)
-    Sleep, 50
+}
+
+; ─── TRUE (EXCLUSIVE) FULLSCREEN ─────────────────────────────────────────────
+MakeTrueFullscreen(hwnd) {
+    if !hwnd
+        return
+    WinActivate, ahk_id %hwnd%
+    WinMaximize, ahk_id %hwnd%
+    ; extra stabilization (some games need a quick minimize/restore)
+    Sleep, 200
+    WinMinimize, ahk_id %hwnd%
+    Sleep, 200
+    WinRestore, ahk_id %hwnd%
+    Sleep, 100
+}
+
+; ─── BORDERLESS WINDOWED (CENTERED) ─────────────────────────────────────────────
+MakeBorderlessWindowed(hwnd) {
+    if !hwnd
+        return
+    WinRestore, ahk_id %hwnd%
+    SysGet, Mon, Monitor, 1
+    w := (MonRight - MonLeft) * 0.75
+    h := (MonBottom - MonTop) * 0.75
+    x := MonLeft + ((MonRight - MonLeft) - w) / 2
+    y := MonTop + ((MonBottom - MonTop) - h) / 2
+    WinSet, Style, -0xC00000, ahk_id %hwnd%
+    WinSet, ExStyle, -0x00040000, ahk_id %hwnd%
+    WinMove, ahk_id %hwnd%, , x, y, w, h
 }
 
 
+
 ; ─── move to next monitor ─────────────────────────────────────────────────────────────
+exeName := "TekkenGame-Win64-Shipping.exe"
 MoveWindowToOtherMonitor(exeName) {
     WinGet, hwnd, ID, ahk_exe %exeName%
     if !hwnd {
