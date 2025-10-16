@@ -95,14 +95,14 @@ IniRead, lastGameExe, %iniFile%, LAST_PLAYED, GameExe, UnknownID
 
 
 ; ─── save screen size. ────────────────────────────────────────────────────────────────────
-IniRead, SavedSize, %iniFile%, SIZE_SETTINGS, SizeChoice, FULLSCREEN
+IniRead, SavedSize, %iniFile%, SIZE_SETTINGS, SizeChoice, BORDERLESS
 SizeChoice := SavedSize
 selectedControl := sizeToControl[SavedSize]
 for key, val in sizeToControl {
     label := (val = selectedControl) ? "[" . key . "]" : key
     GuiControl,, %val%, %label%
 }
-DefaultSize := "FULLSCREEN"
+DefaultSize := "BORDERLESS"
 
 
 ; ─── load window settings from ini. ────────────────────────────────────────────────────────────────────
