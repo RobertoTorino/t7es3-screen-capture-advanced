@@ -668,39 +668,57 @@ return
 
 ; ─── Show "about" dialog function. ────────────────────────────────────────────────────────────────────
 ShowAboutDialog() {
-    ; Extract embedded version.dat resource to temp file
-    tempFile := A_Temp "\version.dat"
-    hRes := DllCall("FindResource", "Ptr", 0, "VERSION_FILE", "Ptr", 10) ;RT_RCDATA = 10
-    if (hRes) {
-        hData := DllCall("LoadResource", "Ptr", 0, "Ptr", hRes)
-        pData := DllCall("LockResource", "Ptr", hData)
-        size := DllCall("SizeofResource", "Ptr", 0, "Ptr", hRes)
-        if (pData && size) {
-            File := FileOpen(tempFile, "w")
-            if IsObject(File) {
-                File.RawWrite(pData + 0, size)
-                File.Close()
+    version := "Unknown"
+
+    ; --- Try reading version.txt first (CI/CD build) ---
+    versionFile := "version.txt"
+    if FileExist(versionFile) {
+        FileRead, verContent, %versionFile%
+        verContent := Trim(verContent)
+        if (verContent != "") {
+            ; Remove leading "v" and any timestamp in parentheses
+            if (verContent ~= "^v(\d+\.\d+\.\d+)") {
+                version := SubStr(verContent, 2, StrLen($matches1))
+            } else {
+                version := verContent
             }
         }
     }
 
-    ; Read version string
-    FileRead, verContent, %tempFile%
-    version := "Unknown"
-    if (verContent != "") {
-        version := verContent
+    ; --- Fallback to embedded version.dat (local build) ---
+    if (version = "Unknown") {
+        tempFile := A_Temp "\version.dat"
+        hRes := DllCall("FindResource", "Ptr", 0, "VERSION_FILE", "Ptr", 10) ; RT_RCDATA = 10
+        if (hRes) {
+            hData := DllCall("LoadResource", "Ptr", 0, "Ptr", hRes)
+            pData := DllCall("LockResource", "Ptr", hData)
+            size := DllCall("SizeofResource", "Ptr", 0, "Ptr", hRes)
+            if (pData && size) {
+                File := FileOpen(tempFile, "w")
+                if IsObject(File) {
+                    File.RawWrite(pData + 0, size)
+                    File.Close()
+                }
+                FileRead, verContent, %tempFile%
+                verContent := Trim(verContent)
+                if (verContent != "") {
+                    version := verContent
+                }
+            }
+        }
     }
 
-aboutText := "T7ES3 Screen Capture Advanced`n"
-           . "Version: " . version . "`n"
-           . Chr(169) . " " . A_YYYY . " Philip" . "`n"
-           . "YouTube: @game_play267" . "`n"
-           . "Twitch: RR_357000" . "`n"
-           . "X: @relliK_2048" . "`n"
-           . "Discord:"
+    aboutText := "T7ES3 Screen Capture Advanced`n"
+               . "Version: " . version . "`n"
+               . Chr(169) . " " . A_YYYY . " Philip`n"
+               . "YouTube: @game_play267`n"
+               . "Twitch: RR_357000`n"
+               . "X: @relliK_2048`n"
+               . "Discord:"
 
-MsgBox, 64, About T7ES3, %aboutText%
+    MsgBox, 64, About T7ES3, %aboutText%
 }
+
 
 
 ; ─── Update CPU status function. ──────────────────────────────────────────────────────────────────────────────────────

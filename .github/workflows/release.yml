@@ -44,6 +44,15 @@ jobs:
           $toolsFolder  = Join-Path $repoRoot "t7es3_tools"
           $extraAssets  = @("README.txt", "t7es3.ini", "LICENSE")
           
+          # Extract version number from GitHub tag
+          $rawTag = "${env:GITHUB_REF_NAME}"
+          $version = $rawTag -replace '^v', ''
+          Write-Host ":: Detected version: $version"
+
+          # Define versioned file names
+          $versionedExe = "t7es3sca_v$version.exe"
+          $zipName = "t7es3sca_v$version.zip"
+          
           $requiredFiles = @($ahkCompiler,$baseFile, $input, "$toolsFolder\\vgmstream-cli.exe")
           
           foreach ($file in $requiredFiles) {
@@ -106,8 +115,18 @@ jobs:
 
           # UPX
           Write-Host ":: Compressing exe..."
-          if (Test-Path $$upxPath) {
+          if (Test-Path $upxPath) {
             & $upxPath --best --lzma $finalExe
+          }
+          
+          # Rename EXE to include version number
+          if (Test-Path $finalExe) {
+            Rename-Item -Path $finalExe -NewName $versionedExe -Force
+            Write-Host ":: Renamed $finalExe to $versionedExe"
+            $finalExe = $versionedExe
+          } else {
+            Write-Error ":: Expected EXE not found for renaming"
+            exit 1
           }
 
           # ZIP
@@ -143,12 +162,14 @@ jobs:
           }
           
           Compress-Archive -Path $toZip -DestinationPath (Join-Path $repoRoot $zipName) -Force
+          Write-Host ":: Created ZIP archive: $zipName"
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            t7es3sca.exe
-            t7es3sca_release.zip
+            t7es3sca_v*.exe
+            t7es3sca_v*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

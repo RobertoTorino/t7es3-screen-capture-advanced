@@ -11,13 +11,13 @@
 - voicemeeter
 
 
-#### Info for always showing mouse cursor and correct full screen settings
+#### Info for always showing mouse cursor and correct full screen settings (optional)
 - Launch Tekken 7.
 - Go to Options → Graphics Settings.
 - Change Display Mode from Fullscreen to Borderless.
 - Restart the game.
 
-- Go to your Tekken 7 install folder (usually):
+- Go to your Tekken 7 install folder:
 - TekkenGame\Binaries\Win64\
 - Right-click TekkenGame-Win64-Shipping.exe → Properties.
 - Open the Compatibility tab.
