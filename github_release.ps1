@@ -1,8 +1,3 @@
-#param(
-#    [string]$Message = "Automated commit",
-#    [ValidateSet("major","minor","patch")] [string]$Part = "patch"
-#)
-
 param(
     [string]$Message = "Automated commit",
     [ValidateSet("major", "minor", "patch")] [string]$Part = "",
@@ -12,15 +7,11 @@ param(
 Write-Host "=== T7ES3 Release Script ===" -ForegroundColor Cyan
 
 # === Git LFS setup ===
-git lfs install
-
-# Track common build artifacts
-git lfs track "*.zip"
-git lfs track "*.wav"
-git lfs track "*.exe"
-git lfs track "*.dll"
-
-# Stage .gitattributes if it changed
+git lfs install | Out-Null
+$patterns = @("*.zip", "*.wav", "*.exe", "*.dll")
+foreach ($p in $patterns) {
+    git lfs track $p | Out-Null
+}
 git add .gitattributes
 
 # Only commit if there are changes
@@ -35,7 +26,7 @@ else
     git push
 }
 
-# === Version detection ===
+# === VERSION ===
 $lastTag = git tag --list "v*" | Sort-Object { [version]($_ -replace '^v', '') } -Descending | Select-Object -First 1
 
 if ($lastTag -match '^v(\d+)\.(\d+)\.(\d+)$')
