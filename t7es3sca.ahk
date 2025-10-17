@@ -124,21 +124,16 @@ if not A_IsAdmin
 
 
 ; ─── Monitor info. ────────────────────────────────────────────────────────────
-monitorIndex := 1  ; Change this to 2 for your second monitor
+monitorIndex := 1  ; Change to 2 for second monitor
 
 SysGet, MonitorCount, MonitorCount
 if (monitorIndex > MonitorCount) {
-    setText("Invalid monitor index:" .  monitorIndex)
+    MsgBox, Invalid monitor index: %monitorIndex%
     ExitApp
 }
 
-SysGet, monLeft, Monitor, %monitorIndex%
-SysGet, monTop, Monitor, %monitorIndex%
-SysGet, monRight, Monitor, %monitorIndex%
-SysGet, monBottom, Monitor, %monitorIndex%
-
-; ─── Get real screen dimensions. ────────────────────────────────────────────────────────────
-SysGet, Monitor, Monitor, %monitorIndex%
+; Get monitor bounds
+SysGet, Mon, Monitor, %monitorIndex%  ; fills MonitorLeft, MonitorTop, MonitorRight, MonitorBottom
 monLeft := MonitorLeft
 monTop := MonitorTop
 monRight := MonitorRight
@@ -146,15 +141,24 @@ monBottom := MonitorBottom
 
 monWidth := monRight - monLeft
 monHeight := monBottom - monTop
+monAspect := monWidth / monHeight
+
+
+; Example: window size should be set elsewhere
+; winAspect := winW / winH
 
 msg := "Monitor Count: " . MonitorCount . "`n`n"
-    . "Monitor  " . monitorIndex    . ":" . "`n"
-    . "Left:    " . monLeft         . "`n"
-    . "Top:     " . monTop          . "`n"
-    . "Right:   " . monRight        . "`n"
-    . "Bottom:  " . monBottom       . "`n"
-    . "Width:   " . monWidth        . "`n"
-    . "Height:  " . monHeight
+     . "Monitor  " . monitorIndex . ":" . "`n"
+     . "Left:    " . monLeft    . "`n"
+     . "Top:     " . monTop     . "`n"
+     . "Right:   " . monRight   . "`n"
+     . "Bottom:  " . monBottom  . "`n"
+     . "Width:   " . monWidth   . "`n"
+     . "Height:  " . monHeight
+
+MsgBox, %msg%
+
+
 
 
 ; ───────────────────────────────────────────────────────────────
@@ -501,7 +505,7 @@ SaveSettings() {
 ExitTekkenGame:
     if (!muteSound)
         SoundPlay, %A_Temp%\T7ES3_GAME_OVER.wav, 1
-
+    Global TekkenGamePath, TekkenGameExe
     ; Confirm what we're checking for
     Log("DEBUG", "Checking for process: " . TekkenGameExe)
     Process, Exist, %TekkenGameExe%
@@ -605,17 +609,16 @@ RunTekkenGame:
     Process, Exist, %TekkenGameExe%
     if (!ErrorLevel)
     {
-    setText("Error, Failed to launch TekkenGame:" . TekkenGamePath)
+    setText("Error, Failed to launch Tekken 7 Game:" . TekkenGamePath)
     Log("ERROR", "TekkenGame failed to launch.")
-    setText("ERROR: TekkenGame did not launch.")
-    CustomTrayTip("ERROR: TekkenGame did not launch!", 3)
+    setText("ERROR: Tekken 7 Game Did Not Launch.")
+    CustomTrayTip("ERROR: Tekken 7 Game did not launch!", 3)
     return
     }
     if (!muteSound)
     SoundPlay, %A_Temp%\T7ES3_GOOD_MORNING.wav
     Log("INFO", "Game Started.")
-    setText("Good Morning! Game Started.")
-    CustomTrayTip("Good Morning! Game Started.", 1)
+    setText("Good Morning! Tekken 7 Game Started.")
 Return
 
 
@@ -653,8 +656,6 @@ return
 
 ; ─── Show "about" dialog function. ────────────────────────────────────────────────────────────────────
 ShowAboutDialog() {
-    version := "Unknown"
-
     ; --- Try reading version.txt first (CI/CD build) ---
     versionFile := "version.txt"
     if FileExist(versionFile) {
@@ -662,8 +663,8 @@ ShowAboutDialog() {
         verContent := Trim(verContent)
         if (verContent != "") {
             ; Remove leading "v" and any timestamp in parentheses
-            if (verContent ~= "^v(\d+\.\d+\.\d+)") {
-                version := SubStr(verContent, 2, StrLen($matches1))
+            if RegExMatch(verContent, "^v(\d+\.\d+\.\d+)", m) {
+                version := m1
             } else {
                 version := verContent
             }
@@ -686,9 +687,8 @@ ShowAboutDialog() {
                 }
                 FileRead, verContent, %tempFile%
                 verContent := Trim(verContent)
-                if (verContent != "") {
+                if (verContent != "")
                     version := verContent
-                }
             }
         }
     }
@@ -835,43 +835,74 @@ KillAllProcessesEsc() {
 
 ; ─── move to next monitor ─────────────────────────────────────────────────────────────
 MoveWindowToOtherMonitor(exeName) {
+    ; --- Get handle ---
     WinGet, hwnd, ID, ahk_exe %exeName%
     if !hwnd {
         MsgBox, %exeName% is not running.
         return
     }
 
+    ; --- Get current pos and size ---
     WinGetPos, winX, winY, winW, winH, ahk_id %hwnd%
     centerX := winX + winW // 2
     centerY := winY + winH // 2
 
+    ; --- Detect fullscreen (occupies monitor bounds) ---
     SysGet, MonCount, MonitorCount
-    if (MonCount < 2)
-        return
-
-    currentMon := 1
     Loop, %MonCount% {
-        SysGet, Mon, Monitor, %A_Index%
-        if (centerX >= MonLeft && centerX < MonRight && centerY >= MonTop && centerY < MonBottom) {
+        SysGet, MonTemp, Monitor, %A_Index%
+        if (centerX >= MonTempLeft && centerX < MonTempRight && centerY >= MonTempTop && centerY < MonTempBottom) {
             currentMon := A_Index
             break
         }
     }
+    if !currentMon
+        currentMon := 1
 
+    SysGet, Mon, Monitor, %currentMon%
+    fullWidth  := MonRight - MonLeft
+    fullHeight := MonBottom - MonTop
+
+    ; --- If same size as monitor, assume fullscreen ---
+    if (Abs(winW - fullWidth) < 10 && Abs(winH - fullHeight) < 10) {
+        ; Switch out of fullscreen first
+        WinActivate, ahk_id %hwnd%
+        Sleep, 150
+        SendInput, !{Enter}   ; Alt+Enter toggles windowed mode
+        Sleep, 1500
+        WinGetPos, winX, winY, winW, winH, ahk_id %hwnd%
+    }
+
+    ; --- Target monitor ---
     targetMon := (currentMon < MonCount) ? currentMon + 1 : 1
     SysGet, MonT, Monitor, %targetMon%
-    targetLeft := MonTLeft
-    targetTop  := MonTTop
-    targetW := MonTRight - MonTLeft
-    targetH := MonTBottom - MonTTop
+    monLeft := MonTLeft
+    monTop := MonTTop
+    monRight := MonTRight
+    monBottom := MonTBottom
+    monWidth := monRight - monLeft
+    monHeight := monBottom - monTop
 
+    ; --- Aspect ratio ---
+    winAspect := winW / winH
+    monAspect := monWidth / monHeight
+    if (winAspect > monAspect)
+        scale := monWidth / winW
+    else
+        scale := monHeight / winH
+
+    newW := winW * scale
+    newH := winH * scale
+    newX := monLeft + (monWidth - newW) / 2
+    newY := monTop  + (monHeight - newH) / 2
+
+    ; --- Move safely ---
     WinShow, ahk_id %hwnd%
     WinRestore, ahk_id %hwnd%
-    Sleep, 80
-
-    WinMove, ahk_id %hwnd%, , targetLeft, targetTop, targetW, targetH
-
-    return
+    Sleep, 100
+    WinMove, ahk_id %hwnd%, , newX, newY, newW, newH
+    Sleep, 100
+    WinSet, Redraw,, ahk_id %hwnd%
 }
 
 

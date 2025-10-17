@@ -1,6 +1,15 @@
+#param(
+#    [string]$Message = "Automated commit",
+#    [ValidateSet("major","minor","patch")] [string]$Part = "patch"
+#)
+
 param(
-    [string]$Message = "Automated commit"
+    [string]$Message = "Automated commit",
+    [ValidateSet("major", "minor", "patch")] [string]$Part = "",
+    [switch]$Auto
 )
+
+Write-Host "=== T7ES3 Release Script ===" -ForegroundColor Cyan
 
 # === Git LFS setup ===
 git lfs install
@@ -14,21 +23,29 @@ git lfs track "*.dll"
 # Stage .gitattributes if it changed
 git add .gitattributes
 
-# Stage all other changes (optional)
-git add .
-
-# Commit current changes
-git commit -m "$Message"
+# Only commit if there are changes
+if (-not (git status --porcelain))
+{
+    Write-Host "No changes to commit."
+}
+else
+{
+    git add .
+    git commit -m "$Message"
+    git push
+}
 
 # === Version detection ===
-# Find the latest tag like v1.2.3
-$lastTag = git tag --list "v*" | Sort-Object {[version]($_ -replace '^v','')} -Descending | Select-Object -First 1
+$lastTag = git tag --list "v*" | Sort-Object { [version]($_ -replace '^v', '') } -Descending | Select-Object -First 1
 
-if ($lastTag -match '^v(\d+)\.(\d+)\.(\d+)$') {
+if ($lastTag -match '^v(\d+)\.(\d+)\.(\d+)$')
+{
     $major = [int]$matches[1]
     $minor = [int]$matches[2]
     $patch = [int]$matches[3]
-} else {
+}
+else
+{
     $major = 0; $minor = 0; $patch = 0
     $lastTag = "v0.0.0"
 }
@@ -36,15 +53,30 @@ if ($lastTag -match '^v(\d+)\.(\d+)\.(\d+)$') {
 Write-Host "Last tag: $lastTag"
 
 # Ask user which part to increment
-$choice = Read-Host "Which part to increment? (1=major, 2=minor, 3=patch, default=patch):"
-switch ($choice.ToLower()) {
-    "major" { $major++; $minor=0; $patch=0 }
-    "1"     { $major++; $minor=0; $patch=0 }
-    "minor" { $minor++; $patch=0 }
-    "2"     { $minor++; $patch=0 }
-    "patch" { $patch++ }
-    "3"     { $patch++ }
-    default { $patch++ }
+$choice = Read-Host "Which part would you like to increment? (1=major, 2=minor, 3=patch, default=patch):"
+switch ( $choice.ToLower())
+{
+    "major" {
+        $major++; $minor = 0; $patch = 0
+    }
+    "1"     {
+        $major++; $minor = 0; $patch = 0
+    }
+    "minor" {
+        $minor++; $patch = 0
+    }
+    "2"     {
+        $minor++; $patch = 0
+    }
+    "patch" {
+        $patch++
+    }
+    "3"     {
+        $patch++
+    }
+    default {
+        $patch++
+    }
 }
 
 # New semantic version
@@ -56,14 +88,19 @@ git tag $newTag
 git push
 git push origin $newTag
 
+Write-Host "Committed and tagged as $newTag."
+
 # === Update changelog automatically ===
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
 $changelogPath = "changelog.txt"
 
 # Get all commits since last tag
-if ($lastTag -ne "v0.0.0") {
+if ($lastTag -ne "v0.0.0")
+{
     $commits = git log $lastTag..HEAD --pretty=format:"- %s"
-} else {
+}
+else
+{
     $commits = git log --pretty=format:"- %s"
 }
 

@@ -14,17 +14,20 @@ $versionDat     = "version.dat"
 $changelogFile  = "changelog.txt"
 $extraAssets    = @($readmePath, $iniPath, $licensePath, $versionTxt, $versionDat)
 
+# === GET ENVIRONMENT INFO ===
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$localTag  = "LocalBuild_$timestamp"
+
 # === CLEAN-UP ===
 Write-Host ":: Cleaning up previous builds..."
 if (Test-Path "new_builds") {
     Remove-Item -Recurse -Force "new_builds"
     Write-Host ":: Removed new_builds folder"
 }
+Remove-Item "$baseExeName.exe","build.log" -ErrorAction SilentlyContinue
 
 # === VERSIONING ===
 $version = ""
-
-# Try to read version.txt
 if (Test-Path $versionTxt) {
     try {
         $version = (Get-Content $versionTxt | Select-String -Pattern '\d+\.\d+\.\d+' -AllMatches).Matches.Value | Select-Object -First 1
@@ -34,28 +37,19 @@ if (Test-Path $versionTxt) {
     }
 }
 
-# Fallback to timestamp if no version detected
 if (-not $version) {
-    $version = (Get-Date -Format "yyyyMMdd_HHmmss")
+    $version = $timestamp
     Write-Host ":: Using fallback version: $version"
 }
 
-# Write version.txt (human-readable for About dialog)
 Set-Content -Path $versionTxt -Value "v$version" -Encoding UTF8
-
-# Write version.dat (fallback for embedded About dialog)
 Set-Content -Path $versionDat -Value $version -Encoding UTF8
 
-# Versioned filenames
 $versionedExe = "${baseExeName}_v$version.exe"
 $versionedZip = "${baseExeName}_v$version.zip"
-Write-Host ":: Versioned output: $versionedExe / $versionedZip"
-
-# === CLEANUP OLD FILES ===
-Remove-Item "$baseExeName.exe", $versionedExe, $versionedZip, "build.log" -ErrorAction SilentlyContinue
 
 # === COMPILE AHK SCRIPT ===
-Write-Host ":: Compiling AHK script..."
+Write-Host ":: Compiling AHK..."
 $arguments = @("/in", $scriptName, "/out", "$baseExeName.exe", "/icon", $iconPath)
 $process = Start-Process -FilePath $ahk2exePath -ArgumentList $arguments -Wait -PassThru -NoNewWindow
 if ($process.ExitCode -ne 0) {
@@ -63,17 +57,16 @@ if ($process.ExitCode -ne 0) {
     Exit 1
 }
 
-# Copy output to versioned EXE
 if (Test-Path "$baseExeName.exe") {
     Copy-Item "$baseExeName.exe" "$versionedExe" -Force
-    Write-Host ":: Compilation successful _ $versionedExe"
+    Write-Host ":: Compilation successful - $versionedExe"
 } else {
     Write-Error "Compilation failed - no output file found."
     Exit 1
 }
 
 # === UPX COMPRESSION ===
-if (Test-Path $upxPath) {
+if ((Test-Path $upxPath) -and (Test-Path $versionedExe)) {
     Write-Host ":: Compressing EXE with UPX..."
     & $upxPath --best --lzma $versionedExe
 } else {
@@ -83,39 +76,31 @@ if (Test-Path $upxPath) {
 # === CREATE ZIP PACKAGE ===
 Write-Host ":: Creating ZIP package..."
 $toZip = @($versionedExe) + $extraAssets
-
-if (Test-Path $mediaFolder) {
-    $toZip += Get-ChildItem -Path $mediaFolder -Recurse -File | Select-Object -ExpandProperty FullName
-}
-
-if (Test-Path $toolsFolder) {
-    $toZip += Get-ChildItem -Path $toolsFolder -Recurse -File | Select-Object -ExpandProperty FullName
-}
+if (Test-Path $mediaFolder) { $toZip += Get-ChildItem -Path $mediaFolder -Recurse -File | Select-Object -ExpandProperty FullName }
+if (Test-Path $toolsFolder) { $toZip += Get-ChildItem -Path $toolsFolder -Recurse -File | Select-Object -ExpandProperty FullName }
+$toZip = $toZip | Where-Object { Test-Path $_ }
 
 Compress-Archive -Path $toZip -DestinationPath $versionedZip -Force
-Write-Host ":: ZIP created _ $versionedZip"
+Write-Host ":: ZIP created - $versionedZip"
 
 # === MOVE TO NEW_BUILDS FOLDER ===
 $buildFolder = "new_builds"
-if (-not (Test-Path $buildFolder)) {
-    New-Item -ItemType Directory -Path $buildFolder | Out-Null
-}
+if (-not (Test-Path $buildFolder)) { New-Item -ItemType Directory -Path $buildFolder | Out-Null }
 
 foreach ($file in @($versionedExe, $versionedZip)) {
     if (Test-Path $file) {
         Move-Item $file -Destination $buildFolder -Force
         Write-Host ":: Moved $file to $buildFolder"
     } else {
-        Write-Warning "File missing: $file"
+        Write-Warning "File not found, skipping: $file"
     }
 }
 
 # === UPDATE CHANGELOG ===
-$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
 $changelogEntry = "[${timestamp}] Built $versionedExe with version $version"
 Add-Content -Path $changelogFile -Value $changelogEntry
-Write-Host ":: Changelog updated _ $changelogFile"
+Write-Host ":: Changelog updated - $changelogFile"
 
 # === FINISHED ===
-Write-Host ":: Build complete - version: $version"
+Write-Host ":: Build completed - version: $version"
 Invoke-Item $buildFolder
