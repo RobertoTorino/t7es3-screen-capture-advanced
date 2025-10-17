@@ -17,7 +17,7 @@ git add .gitattributes
 # Only commit if there are changes
 if (-not (git status --porcelain))
 {
-    Write-Host "No changes to commit."
+    Write-Host ":: No changes to commit."
 }
 else
 {
@@ -41,7 +41,7 @@ else
     $lastTag = "v0.0.0"
 }
 
-Write-Host "Last tag: $lastTag"
+Write-Host ":: Last tag: $lastTag"
 
 # Ask user which part to increment
 $choice = Read-Host "Which part would you like to increment? (1=major, 2=minor, 3=patch, default=patch):"
@@ -79,7 +79,7 @@ git tag $newTag
 git push
 git push origin $newTag
 
-Write-Host "Committed and tagged as $newTag."
+Write-Host ":: Committed and tagged as $newTag."
 
 # === Update changelog automatically ===
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm"
@@ -100,7 +100,7 @@ $changelogEntry = "[$timestamp] $newTag`n$commits`n"
 
 # Append to changelog.txt
 Add-Content -Path $changelogPath -Value $changelogEntry
-Write-Host "Updated changelog.txt:"
+Write-Host ":: Updated changelog.txt:"
 Write-Host $changelogEntry
 
 # Stage and push changelog
@@ -112,10 +112,10 @@ git push
 $versionFile = "version.txt"
 $versionInfo = "$newTag ($timestamp)"
 Set-Content -Path $versionFile -Value $versionInfo
-Write-Host "Updated version.txt: $versionInfo"
+Write-Host ":: Updated version.txt: $versionInfo"
 
 git add $versionFile
 git commit -m "Update version file for $newTag"
 git push
 
-Write-Host "Release complete: $newTag"
+Write-Host ":: Release complete: $newTag"
